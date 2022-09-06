@@ -58,7 +58,7 @@ entity transceiver_dc_gt is
       rxcharisk                    : out std_logic_vector( 1 downto 0);
       rxdisperr                    : out std_logic_vector( 1 downto 0);
       rxnotintable                 : out std_logic_vector( 1 downto 0);
-      rxcdrlock                    : out std_logic;
+      rxcdrlocked                  : out std_logic;
       rxresetdone                  : out std_logic;
       rxrecclk                     : out std_logic;
 
@@ -487,7 +487,7 @@ architecture structure of transceiver_dc_gt is
         ------------------------- Receive Ports - CDR Ports ------------------------
         RXCDRFREQRESET                  =>      gnd,
         RXCDRHOLD                       =>      gnd,
-        RXCDRLOCK                       =>      rxcdrlock,
+        RXCDRLOCK                       =>      rxcdrlocked,
         RXCDROVRDEN                     =>      gnd,
         RXCDRRESET                      =>      gnd,
         RXCDRRESETRSV                   =>      gnd,
