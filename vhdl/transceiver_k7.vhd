@@ -22,9 +22,6 @@ use UNISIM.VCOMPONENTS.ALL;
 entity transceiver_dc_gt is
   generic
     (
-      RX_DFE_KL_CFG2_IN            : bit_vector :=  X"3010D90C";
-      PMA_RSV_IN                   : bit_vector :=  x"00018480";
-      PCS_RSVD_ATTR_IN             : bit_vector :=  X"000000000002";
       RX_POLARITY                  : std_logic := '0';
       TX_POLARITY                  : std_logic := '0';
       REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
@@ -68,12 +65,15 @@ entity transceiver_dc_gt is
       txusrrdy                     : in  std_logic;
       txdata                       : in  std_logic_vector(15 downto 0);
       txcharisk                    : in  std_logic_vector( 1 downto 0);
-      txbufstatus                  : in  std_logic_vector( 1 downto 0)
+      txbufstatus                  : out std_logic_vector( 1 downto 0)
 
       );
 end entity transceiver_dc_gt;
 
 architecture structure of transceiver_dc_gt is
+  constant RX_DFE_KL_CFG2_IN : bit_vector :=  X"3010D90C";
+  constant PMA_RSV_IN        : bit_vector :=  x"00018480";
+  constant PCS_RSVD_ATTR_IN  : bit_vector :=  X"000000000002";
 
   signal CPLLFBCLKLOST_out : std_logic;
   signal CPLLREFCLKSEL_in : std_logic_vector(2 downto 0);

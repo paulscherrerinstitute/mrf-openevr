@@ -87,10 +87,10 @@ architecture structure of zynq_top is
     MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
     MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
 
-    MGTTX2_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
-    MGTTX2_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
-    MGTRX2_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
-    MGTRX2_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
+    MGTTX_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
+    MGTTX_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
+    MGTRX_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
+    MGTRX_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
     );
   end component;
 
@@ -244,11 +244,11 @@ begin
       MGTREFCLK1_N => MGTREFCLK1_N,
       
       
-      MGTRX2_N => MGTRX2_N,
-      MGTRX2_P => MGTRX2_p,
+      MGTRX_N => MGTRX2_N,
+      MGTRX_P => MGTRX2_p,
 
-      MGTTX2_N => MGTTX2_N,
-      MGTTX2_P => MGTTX2_P);
+      MGTTX_N => MGTTX2_N,
+      MGTTX_P => MGTTX2_P);
 
   i_databuf_dc : databuf_rx_dc
     port map (
