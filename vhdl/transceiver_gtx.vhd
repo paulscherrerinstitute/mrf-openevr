@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------
 --
---  File        : transceiver_dc_k7.vhd
+--  File        : transceiver_dc_gtx.vhd
 --
 --  Title       : Event Transceiver Multi-Gigabit Transceiver for Xilinx K7
 --

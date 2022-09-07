@@ -142,7 +142,8 @@ set files [list \
  "[file normalize "$origin_dir/vhdl/delay_adjust.vhd"]"\
  "[file normalize "$origin_dir/vhdl/delay_measure_wnd.vhd"]"\
  "[file normalize "$origin_dir/vhdl/evr_dc.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_dc_k7.vhd"]"\
+ "[file normalize "$origin_dir/vhdl/transceiver_dc.vhd"]"\
+ "[file normalize "$origin_dir/vhdl/transceiver_gtx.vhd"]"\
  "[file normalize "$origin_dir/vhdl/zynq_top.vhd"]"\
 ]
 add_files -norecurse -fileset $obj $files
