@@ -134,7 +134,8 @@ architecture structure of transceiver_dc is
         txusrrdy                     : in  std_logic;
         txdata                       : in  std_logic_vector(15 downto 0);
         txcharisk                    : in  std_logic_vector( 1 downto 0);
-        txbufstatus                  : out std_logic_vector( 1 downto 0)
+        txbufstatus                  : out std_logic_vector( 1 downto 0);
+        txusrclk                     : out std_logic
         );
   end component transceiver_dc_gt;
 
@@ -354,7 +355,8 @@ begin
       txusrrdy      => tx_usrrdy_i,
       txdata        => tx_data,
       txcharisk     => tx_charisk,
-      txbufstatus   => tx_bufstatus
+      txbufstatus   => tx_bufstatus,
+      txusrclk      => tx_usrclk
       );
   
 

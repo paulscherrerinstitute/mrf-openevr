@@ -65,7 +65,8 @@ entity transceiver_dc_gt is
       txusrrdy                     : in  std_logic;
       txdata                       : in  std_logic_vector(15 downto 0);
       txcharisk                    : in  std_logic_vector( 1 downto 0);
-      txbufstatus                  : out std_logic_vector( 1 downto 0)
+      txbufstatus                  : out std_logic_vector( 1 downto 0);
+      txusrclk                     : out std_logic
 
       );
 end entity transceiver_dc_gt;
@@ -121,7 +122,7 @@ architecture structure of transceiver_dc_gt is
   signal RXPMARESET_in : std_logic;
   signal RXEQMIX       : std_logic_vector(1 downto 0);
 
-  signal txusrclk      : std_logic;
+  signal txusrclk_i    : std_logic;
   signal txoutclk      : std_logic;
   signal rxusrclk      : std_logic;
   
@@ -138,7 +139,6 @@ architecture structure of transceiver_dc_gt is
   signal gnd_vec       : std_logic_vector(7 downto 0);
   signal tied_to_ground_vec_i : std_logic_vector(63 downto 0);
   signal tied_to_ground_i     : std_logic;
-  signal tied_to_vcc          : std_logic;
   begin
   
   gtxe2_X0Y0_i :GTXE2_CHANNEL
@@ -650,8 +650,8 @@ architecture structure of transceiver_dc_gt is
         TXCHARDISPMODE                  =>      gnd_vec(7 downto 0),
         TXCHARDISPVAL                   =>      gnd_vec(7 downto 0),
         ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
-        TXUSRCLK                        =>      txusrclk,
-        TXUSRCLK2                       =>      txusrclk,
+        TXUSRCLK                        =>      txusrclk_i,
+        TXUSRCLK2                       =>      txusrclk_i,
         --------------------- Transmit Ports - PCI Express Ports -------------------
         TXELECIDLE                      =>      gnd,
         TXMARGIN                        =>      gnd_vec(2 downto 0),
@@ -790,9 +790,10 @@ architecture structure of transceiver_dc_gt is
 
   i_bufg1: BUFG
     port map (
-      O => txusrclk,
+      O => txusrclk_i,
       I => txoutclk);
       
   rxrecclk <= rxusrclk;
+  txusrclk <= txusrclk_i;
   
 end architecture structure;
