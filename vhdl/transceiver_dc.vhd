@@ -403,7 +403,7 @@ begin
     end if;
   end process;
 
-  link_ok_detection : process (tx_usrclk, link_ok, reset, rx_error_i)
+  link_ok_detection : process (tx_usrclk, link_ok, reset, rx_error_i, rx_link_ok_i)
     variable link_ok_delay : std_logic_vector(19 downto 0) := (others => '0');
   begin
     rx_link_ok <= rx_link_ok_i;
@@ -727,7 +727,7 @@ begin
 
   transmit_data : process (tx_usrclk, tx_fifo_do, tx_fifo_empty, dbus_txd,
                            databuf_txd, databuf_tx_k, databuf_tx_mode, dc_mode,
-                           reset)
+                           reset, tx_event_ena_i)
     variable even       : std_logic_vector(1 downto 0) := "00";
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
