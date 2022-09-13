@@ -119,10 +119,13 @@ architecture structure of zynq_top is
       reset             : in std_logic);
   end component;
 
-  COMPONENT ila_0
+  COMPONENT Ila_0
     PORT (
       clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
+      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
       );
   END COMPONENT;
 
@@ -190,7 +193,11 @@ begin
   i_ila : ila_0
     port map (
       CLK => event_clk,
-      probe0 => TRIG0);
+      probe0 => TRIG0( 63 downto   0),
+      probe1 => TRIG0(127 downto  64),
+      probe2 => TRIG0(191 downto 128),
+      probe3 => TRIG0(255 downto 192)
+      );
 
   i_bufg : bufg
     port map (

@@ -162,17 +162,27 @@ architecture structure of transceiver_dc is
   COMPONENT ila_0
     PORT (
       clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
+      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
       );
   END COMPONENT;
 
 begin
 
   -- ILA debug core
+  G_ILA : if ( true ) generate
+  begin
   i_ila : ila_0
     port map (
       CLK => tx_usrclk,
-      probe0 => TRIG0);
+      probe0 => TRIG0( 63 downto   0),
+      probe1 => TRIG0(127 downto  64),
+      probe2 => TRIG0(191 downto 128),
+      probe3 => TRIG0(255 downto 192)
+    );
+  end generate G_ILA;
       
   i_dc_fifo : FIFO36E1
     generic map (
@@ -349,8 +359,8 @@ begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
     TRIG0(60) <= rx_error_sync;
-    TRIG0(75 downto 61) <= prescaler;
-    TRIG0(79 downto 76) <= count;
+    TRIG0(78 downto 64) <= prescaler;
+    TRIG0(82 downto 79) <= count;
     
     if rising_edge(tx_usrclk) then
       rxcdrreset <= '0';
@@ -500,7 +510,8 @@ begin
   TRIG0(15 downto 0) <= rx_data;
   TRIG0(17 downto 16) <= rx_charisk;
   TRIG0(19 downto 18) <= rx_disperr;
-  TRIG0(21 downto 20) <= "00";
+  TRIG0(          20) <= cpll_locked;
+  TRIG0(          21) <= fifo_wren;
   TRIG0(23 downto 22) <= rx_notintable;
   TRIG0(24) <= link_ok;
   TRIG0(25) <= cpll_reset_i;
@@ -508,20 +519,20 @@ begin
   TRIG0(27) <= tx_usrrdy_i;
   TRIG0(28) <= rx_gtreset_i;
   TRIG0(29) <= rx_usrrdy_i;
-  TRIG0(30) <= '0';
+  TRIG0(30) <= rx_gtresetting;
   TRIG0(31) <= '0';
   TRIG0(47 downto 32) <= tx_data;
   TRIG0(49 downto 48) <= tx_charisk;
   TRIG0(50) <= rx_error;
   TRIG0(51) <= rxcdrreset;
   TRIG0(52) <= align_error;
-  TRIG0(87 downto 80) <= databuf_rxd_i;
-  TRIG0(88) <= databuf_rx_k_i;
-  TRIG0(89) <= rx_cdrlocked;
-  TRIG0(90) <= reset;
-  TRIG0(91) <= reset;
-  TRIG0(92) <= rx_resetdone;
-  TRIG0(116 downto 93) <= (others => '0');
+  TRIG0(63 downto 61) <= (others => '0');
+  TRIG0(90 downto 83) <= databuf_rxd_i;
+  TRIG0(91) <= databuf_rx_k_i;
+  TRIG0(92) <= rx_cdrlocked;
+  TRIG0(93) <= reset;
+  TRIG0(94) <= rx_resetdone;
+  TRIG0(116 downto 95) <= (others => '0');
   TRIG0(117) <= databuf_tx_mode;
   TRIG0(119) <= databuf_tx_k;
   TRIG0(127 downto 120) <= databuf_txd;
@@ -534,7 +545,7 @@ begin
   TRIG0(166) <= tx_fifo_rden;
   TRIG0(167) <= tx_fifo_empty;
   TRIG0(168) <= tx_event_ena_i;
-  TRIG0(250 downto 170) <= (others => '0');
+  TRIG0(250 downto 173) <= (others => '0');
 
   process (rx_recclk)
     variable toggle : std_logic := '0';
