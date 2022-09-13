@@ -86,6 +86,7 @@ architecture structure of transceiver_dc is
   signal rxcdrreset    : std_logic;
 
   signal rx_gtreset_i   : std_logic;
+  signal rx_gtresetting : std_logic := '0';
   signal tx_gtreset_i  : std_logic;
   signal tx_usrrdy_i   : std_logic;
   signal rx_usrrdy_i   : std_logic;
@@ -364,7 +365,7 @@ begin
     
     if rising_edge(tx_usrclk) then
       rxcdrreset <= '0';
-      if rx_gtreset_i = '0' then
+      if rx_gtresetting = '0' then
         if prescaler(prescaler'high) = '1' then
           link_ok <= '0';
           if count = "0000" then
@@ -421,7 +422,7 @@ begin
       -- Synchronize asynchronous resets
       reset_sync(0) := reset_sync(1);
       reset_sync(1) := '0';
-      if reset = '1' or cpll_locked = '0' then
+      if (reset = '1' or cpll_locked = '0') and ( rx_gtresetting = '0' ) then
         reset_sync(1) := '1';
       end if;
     end if;
@@ -644,6 +645,12 @@ begin
   begin
     if rising_edge(tx_usrclk) then
       rx_gtreset_i <= cnt(cnt'high);
+      if ( cnt(cnt'high) = '1' ) then
+        rx_gtresetting <= '1';
+      end if;
+      if ( rx_resetdone = '1' ) then
+        rx_gtresetting <= '0';
+      end if;
       rx_usrrdy_i <= not cnt(cnt'high);
       if cnt(cnt'high) = '1' then
         cnt := cnt - 1;
