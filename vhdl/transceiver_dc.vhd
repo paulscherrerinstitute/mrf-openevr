@@ -20,14 +20,9 @@ use work.evr_pkg.all;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 
+use work.transceiver_pkg.all;
+
 entity transceiver_dc is
-  generic (
-      -- MGT RX&TX signal pair polarity
-      RX_POLARITY   : std_logic := '0'; -- '1' for inverted polarity
-      TX_POLARITY   : std_logic := '0'; -- '1' for inverted polarity
-      -- MGT reference clock selection
-      REFCLKSEL     : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-      );
   port (
     sys_clk         : in std_logic;   -- system bus clock
 
@@ -72,79 +67,20 @@ entity transceiver_dc is
     databuf_tx_ena  : out std_logic; -- TX data buffer data enable
     databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
    
-    -- MGT physical pins
-    
-    MGTREFCLK0_P : in std_logic;
-    MGTREFCLK0_N : in std_logic;
-    MGTREFCLK1_P : in std_logic;
-    MGTREFCLK1_N : in std_logic;
-
-    MGTTX_P      : out std_logic;
-    MGTTX_N      : out std_logic;
-    MGTRX_P      : in std_logic;
-    MGTRX_N      : in std_logic
+    -- MGT
+    mgtIb           : in  transceiver_ob_type;
+    mgtOb           : out transceiver_ib_type
     );
 end transceiver_dc;
 
 architecture structure of transceiver_dc is
 
-  component transceiver_dc_gt is
-    generic
-      (
-        RX_POLARITY                  : std_logic := '0';
-        TX_POLARITY                  : std_logic := '0';
-        REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-        );
-    port
-      (
-        sys_clk                      : in  std_logic;
-        REFCLK0P                     : in  std_logic;
-        REFCLK0N                     : in  std_logic;
-        REFCLK1P                     : in  std_logic;
-        REFCLK1N                     : in  std_logic;
-        
-        mgtreset                     : in  std_logic;
-        
-        cpll_reset                   : in  std_logic;
-        cpll_locked                  : out std_logic;
-        
-        drpclk                       : in  std_logic;
-        drpaddr                      : in  std_logic_vector(8 downto 0);
-        drpdi                        : in  std_logic_vector(15 downto 0);
-        drpdo                        : out std_logic_vector(15 downto 0);
-        drpen                        : in  std_logic;
-        drpwe                        : in  std_logic;
-        drprdy                       : out std_logic;
-        
-        rxp                          : in  std_logic;
-        rxn                          : in  std_logic;
-        gtrxreset                    : in  std_logic;
-        rxusrrdy                     : in  std_logic;
-        rxdata                       : out std_logic_vector(15 downto 0);
-        rxcharisk                    : out std_logic_vector( 1 downto 0);
-        rxdisperr                    : out std_logic_vector( 1 downto 0);
-        rxnotintable                 : out std_logic_vector( 1 downto 0);
-        rxcdrlocked                  : out std_logic;
-        rxresetdone                  : out std_logic;
-        rxrecclk                     : out std_logic;
-
-        txp                          : out std_logic;
-        txn                          : out std_logic;
-        gttxreset                    : in  std_logic;
-        txusrrdy                     : in  std_logic;
-        txdata                       : in  std_logic_vector(15 downto 0);
-        txcharisk                    : in  std_logic_vector( 1 downto 0);
-        txbufstatus                  : out std_logic_vector( 1 downto 0);
-        txusrclk                     : out std_logic
-        );
-  end component transceiver_dc_gt;
-
-  signal vcc     : std_logic;
-  signal gnd     : std_logic;
-  signal gnd_vec : std_logic_vector(31 downto 0);
-  signal tied_to_ground_i     :   std_logic;
-  signal tied_to_ground_vec_i :   std_logic_vector(63 downto 0);
-  signal tied_to_vcc_i        :   std_logic;
+  signal vcc     : std_logic  := '1';
+  signal gnd     : std_logic  := '0';
+  signal gnd_vec : std_logic_vector(31 downto 0) := (others => '0');
+  signal tied_to_ground_i     :   std_logic      := '0';
+  signal tied_to_ground_vec_i :   std_logic_vector(63 downto 0) := (others => '0');
+  signal tied_to_vcc_i        :   std_logic := '1';
 
   signal rx_beacon_i   : std_logic;
   signal rxcdrreset    : std_logic;
@@ -215,12 +151,12 @@ architecture structure of transceiver_dc is
   signal tx_charisk      :  std_logic_vector( 1 downto 0);
   signal tx_bufstatus    :  std_logic_vector(1 downto 0);
 
-  signal drpclk          :  std_logic;
-  signal drpaddr         :  std_logic_vector(8 downto 0);
-  signal drpdi           :  std_logic_vector(15 downto 0);
+  signal drpclk          :  std_logic := '0';
+  signal drpaddr         :  std_logic_vector(8 downto 0)  := (others => '0');
+  signal drpdi           :  std_logic_vector(15 downto 0) := (others => '0');
   signal drpdo           :  std_logic_vector(15 downto 0);
-  signal drpen           :  std_logic;
-  signal drpwe           :  std_logic;
+  signal drpen           :  std_logic := '0';
+  signal drpwe           :  std_logic := '0';
   signal drprdy          :  std_logic;
 
   COMPONENT ila_0
@@ -309,62 +245,42 @@ begin
       DI => tx_fifo_di,
       DIP => tx_fifo_dip);
 
-  i_mgt : transceiver_dc_gt
-    generic map (
-      -- MGT RX&TX signal pair polarity
-      RX_POLARITY   => RX_POLARITY,
-      TX_POLARITY   => TX_POLARITY,
-      -- MGT reference clock selection
-      REFCLKSEL     => REFCLKSEL
-      )
-    port map (
-      sys_clk       => sys_clk,
-      REFCLK0P      => MGTREFCLK0_P,
-      REFCLK0N      => MGTREFCLK0_N,
-      REFCLK1P      => MGTREFCLK1_P,
-      REFCLK1N      => MGTREFCLK1_N,
-      
-      mgtreset      => reset,
-      
-      cpll_reset    => cpll_reset_i,
-      cpll_locked   => cpll_locked,
-      
-      drpclk        => drpclk,
-      drpaddr       => drpaddr,
-      drpdi         => drpdi,
-      drpdo         => drpdo,
-      drpen         => drpen,
-      drpwe         => drpwe,
-      drprdy        => drprdy,
-      
-      rxp           => MGTRX_P,
-      rxn           => MGTRX_N,
-      gtrxreset     => rx_gtreset_i,
-      rxusrrdy      => rx_usrrdy_i,
-      rxdata        => rx_data,
-      rxcharisk     => rx_charisk,
-      rxdisperr     => rx_disperr,
-      rxnotintable  => rx_notintable,
-      rxcdrlocked   => rx_cdrlocked,
-      rxresetdone   => rx_resetdone,
-      rxrecclk      => rx_recclk,
-
-      txp           => MGTTX_P,
-      txn           => MGTTX_N,
-      gttxreset     => tx_gtreset_i,
-      txusrrdy      => tx_usrrdy_i,
-      txdata        => tx_data,
-      txcharisk     => tx_charisk,
-      txbufstatus   => tx_bufstatus,
-      txusrclk      => tx_usrclk
-      );
+  mgtOb.mgtreset   <= reset;
   
+  mgtOb.cpll_reset <= cpll_reset_i;
+  cpll_locked      <= mgtIb.cpll_locked;
 
-  recclk_out   <= rx_recclk;
-  refclk_out   <= tx_usrclk;
+  mgtOb.drpclk     <= drpclk;
+  mgtOb.drpaddr    <= drpaddr;
+  mgtOb.drpdi      <= drpdi;
+  drpdo            <= mgtIb.drpdo;
+  mgtOb.drpen      <= drpen;
+  mgtOb.drpwe      <= drpwe;
+  drprdy           <= mgtIb.drprdy;
 
-  rx_powerdown <= '0';
-  tx_powerdown <= '0';
+  mgtOb.gtrxreset  <= rx_gtreset_i;
+  mgtOb.rxusrrdy   <= rx_usrrdy_i;
+
+  rx_data          <= mgtIb.rxdata;
+  rx_charisk       <= mgtIb.rxcharisk;
+  rx_disperr       <= mgtIb.rxdisperr;
+  rx_notintable    <= mgtIb.rxnotintable;
+  rx_cdrlocked     <= mgtIb.rxcdrlocked;
+  rx_resetdone     <= mgtIb.rxresetdone;
+  rx_recclk        <= mgtIb.rxrecclk;
+
+  mgtOb.gttxreset  <= tx_gtreset_i;
+  mgtOb.txusrrdy   <= tx_usrrdy_i;
+  mgtOb.txdata     <= tx_data;
+  mgtOb.txcharisk  <= tx_charisk;
+  tx_bufstatus     <= mgtIb.txbufstatus;
+  tx_usrclk        <= mgtIb.txusrclk;
+
+  recclk_out       <= rx_recclk;
+  refclk_out       <= tx_usrclk;
+
+  rx_powerdown     <= '0';
+  tx_powerdown     <= '0';
 
   fifo_di(63 downto 16) <= (others => '0');
   fifo_di(15 downto 0) <= rx_data;

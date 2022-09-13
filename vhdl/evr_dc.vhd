@@ -5,14 +5,9 @@ use ieee.std_logic_unsigned.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
+use work.transceiver_pkg.all;
+
 entity evr_dc is
-  generic (
-    -- MGT RX&TX signal pair polarity
-    RX_POLARITY     : std_logic := '0'; -- '1' for inverted polarity
-    TX_POLARITY     : std_logic := '0'; -- '1' for inverted polarity
-    -- MGT reference clock selection
-    REFCLKSEL       : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-    );
   port (
     -- System bus clock
     sys_clk         : in std_logic;
@@ -51,30 +46,15 @@ entity evr_dc is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
     
-    -- MGT physical pins
-
-    MGTREFCLK0_P : in std_logic;
-    MGTREFCLK0_N : in std_logic;
-    MGTREFCLK1_P : in std_logic;
-    MGTREFCLK1_N : in std_logic;
-
-    MGTTX_P      : out std_logic;
-    MGTTX_N      : out std_logic;
-    MGTRX_P      : in std_logic;
-    MGTRX_N      : in std_logic
+    -- MGT
+    mgtIb           : in  transceiver_ob_type;
+    mgtOb           : out transceiver_ib_type
     );
 end evr_dc;
 
 architecture structure of evr_dc is
 
   component transceiver_dc is
-    generic (
-      -- MGT RX&TX signal pair polarity
-      RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-      TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-      -- MGT reference clock selection
-      REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-      );
     port (
       sys_clk         : in std_logic;   -- system bus clock
       refclk_out      : out std_logic;
@@ -118,17 +98,10 @@ architecture structure of evr_dc is
       databuf_tx_ena  : out std_logic; -- TX data buffer data enable
       databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
 
-      -- MGT physical pins
+      -- MGT
+      mgtIb           : in  transceiver_ob_type;
+      mgtOb           : out transceiver_ib_type
 
-      MGTREFCLK0_P : in std_logic;
-      MGTREFCLK0_N : in std_logic;
-      MGTREFCLK1_P : in std_logic;
-      MGTREFCLK1_N : in std_logic;
-
-      MGTTX_P      : out std_logic;
-      MGTTX_N      : out std_logic;
-      MGTRX_P      : in std_logic;
-      MGTRX_N      : in std_logic
       );
   end component transceiver_dc;
 
@@ -262,11 +235,6 @@ architecture structure of evr_dc is
 begin
 
   i_upstream : transceiver_dc
-    generic map (
-      RX_POLARITY                  => RX_POLARITY,
-      TX_POLARITY                  => TX_POLARITY,
-      REFCLKSEL                    => REFCLKSEL
-      )
     port map (
       sys_clk    => sys_clk,
       refclk_out => refclk,
@@ -301,16 +269,8 @@ begin
       databuf_tx_k => databuf_tx_k,
       databuf_tx_ena => databuf_tx_ena,
       databuf_tx_mode => databuf_tx_mode,
-
-      MGTREFCLK0_P    => MGTREFCLK0_P,
-      MGTREFCLK0_N    => MGTREFCLK0_N,
-      MGTREFCLK1_P    => MGTREFCLK1_P,
-      MGTREFCLK1_N    => MGTREFCLK1_N,
-
-      MGTTX_P         => MGTTX_P,
-      MGTTX_N         => MGTTX_N,
-      MGTRX_P         => MGTRX_P,
-      MGTRX_N         => MGTRX_N
+      mgtIb           => mgtIb,
+      mgtOb           => mgtOb
       );
 
   int_dly : delay_measure

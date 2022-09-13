@@ -5,6 +5,8 @@ use ieee.std_logic_unsigned.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
+use work.transceiver_pkg.all;
+
 entity zynq_top is
   port (
     PL_CLK       : in std_logic;
@@ -80,17 +82,9 @@ architecture structure of zynq_top is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
 
-    -- MGT physical pins
-    
-    MGTREFCLK0_P : in std_logic;
-    MGTREFCLK0_N : in std_logic;
-    MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
-    MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
-
-    MGTTX_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
-    MGTTX_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
-    MGTRX_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
-    MGTRX_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
+    -- MGT
+    mgtIb           : in  transceiver_ob_type;
+    mgtOb           : out transceiver_ib_type
     );
   end component;
 
@@ -186,6 +180,9 @@ architecture structure of zynq_top is
   signal databuf_irq_dc      : std_logic;
 
   signal topology_addr       : std_logic_vector(31 downto 0);
+
+  signal mgtIb               : transceiver_ib_type;
+  signal mgtOb               : transceiver_ob_type;
   
 begin
 
@@ -200,11 +197,30 @@ begin
       I => PL_CLK,
       O => sys_clk);
 
-  i_evr_dc : evr_dc
+  i_mgt : entity work.transceiver_dc_gt
     generic map (
       RX_POLARITY => '0',
       TX_POLARITY => '0',
-      refclksel => '1')
+      refclksel   => '1')
+    port map (
+      sys_clk  => sys_clk,
+
+      ib       => mgtIb,
+      ob       => mgtOb,
+
+      REFCLK0P => gnd,
+      REFCLK0N => gnd,
+      REFCLK1P => MGTREFCLK1_P,
+      REFCLK1N => MGTREFCLK1_N,
+
+
+      rxn     => MGTRX2_N,
+      rxp     => MGTRX2_p,
+
+      txn     => MGTTX2_N,
+      txp     => MGTTX2_P);
+
+  i_evr_dc : evr_dc
     port map (
       sys_clk => sys_clk,
       refclk_out => refclk,
@@ -238,17 +254,8 @@ begin
       delay_comp_target => delay_comp_target,
       delay_comp_locked_out => delay_comp_locked,
       
-      MGTREFCLK0_P => gnd,
-      MGTREFCLK0_N => gnd,
-      MGTREFCLK1_P => MGTREFCLK1_P,
-      MGTREFCLK1_N => MGTREFCLK1_N,
-      
-      
-      MGTRX_N => MGTRX2_N,
-      MGTRX_P => MGTRX2_p,
-
-      MGTTX_N => MGTTX2_N,
-      MGTTX_P => MGTTX2_P);
+      mgtIb => mgtOb,
+      mgtOb => mgtIb);
 
   i_databuf_dc : databuf_rx_dc
     port map (
