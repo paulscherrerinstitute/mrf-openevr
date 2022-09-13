@@ -19,6 +19,7 @@ package transceiver_pkg is
    type transceiver_ob_type is record
       -- PLL
       cpll_locked           : std_logic;
+      drpclk                : std_logic;
       drpdo                 : std_logic_vector(15 downto 0);
       drprdy                : std_logic;
       drpbsy                : std_logic;
@@ -40,7 +41,6 @@ package transceiver_pkg is
       mgtreset              : std_logic;
       cpll_reset            : std_logic;
 
-      drpclk                : std_logic;
       drpaddr               : std_logic_vector(8 downto 0);
       drpdi                 : std_logic_vector(15 downto 0);
       drpen                 : std_logic;

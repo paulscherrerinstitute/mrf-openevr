@@ -112,6 +112,7 @@ architecture structure of transceiver_dc_gt is
   signal rxrundisp_float_i                :   std_logic_vector(5 downto 0);
   signal rxdata_float_i                   :   std_logic_vector(63 downto 16);
   signal txdata_i                         :   std_logic_vector(63 downto 0);
+  signal drpclk                           :   std_logic;
 
   signal gnd           : std_logic;
   signal vcc           : std_logic;
@@ -123,6 +124,8 @@ architecture structure of transceiver_dc_gt is
 
   -- this module is not driving DRP itself (wizard-generated ones might!)
   ob.drpbsy <= '0';
+  drpclk    <= sys_clk;
+  ob.drpclk <= drpclk;
 
   gtxe2_X0Y0_i :GTXE2_CHANNEL
     generic map
@@ -433,7 +436,7 @@ architecture structure of transceiver_dc_gt is
         GTSOUTHREFCLK1                  =>      gnd,
         ---------------------------- Channel - DRP Ports  --------------------------
         DRPADDR                         =>      ib.drpaddr,
-        DRPCLK                          =>      ib.drpclk,
+        DRPCLK                          =>      drpclk,
         DRPDI                           =>      ib.drpdi,
         DRPDO                           =>      ob.drpdo,
         DRPEN                           =>      ib.drpen,

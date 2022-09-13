@@ -130,7 +130,7 @@ architecture structure of transceiver_dc is
   -- TX Datapath signals
 
   signal phase_acc    : std_logic_vector(6 downto 0);
-  signal phase_acc_en : std_logic;
+  signal phase_acc_en : std_logic := '0';
   signal TRIG0 : std_logic_vector(255 downto 0);
 
     -- MGT interface
@@ -152,7 +152,7 @@ architecture structure of transceiver_dc is
   signal tx_charisk      :  std_logic_vector( 1 downto 0);
   signal tx_bufstatus    :  std_logic_vector(1 downto 0);
 
-  signal drpclk          :  std_logic := '0';
+  signal drpclk          :  std_logic;
   signal drpaddr         :  std_logic_vector(8 downto 0)  := (others => '0');
   signal drpdi           :  std_logic_vector(15 downto 0) := (others => '0');
   signal drpdo           :  std_logic_vector(15 downto 0);
@@ -261,7 +261,7 @@ begin
   mgtOb.cpll_reset <= cpll_reset_i;
   cpll_locked      <= mgtIb.cpll_locked;
 
-  mgtOb.drpclk     <= drpclk;
+  drpclk           <= mgtIb.drpclk;
   mgtOb.drpaddr    <= drpaddr;
   mgtOb.drpdi      <= drpdi;
   drpdo            <= mgtIb.drpdo;
@@ -753,16 +753,15 @@ begin
   tx_fifo_dip <= (others => '0');
   tx_fifo_rst <= reset;
   
-  drpclk <= tx_usrclk;
-
-  process (drpclk, reset, tx_bufstatus, tx_usrrdy_i)
+  process (tx_usrclk, reset, tx_bufstatus, tx_usrrdy_i)
     type state is (init, init_delay, acq_bufstate, deldec, delinc, locked);
     variable ph_state : state;
     variable phase       : std_logic_vector(6 downto 0);
     variable cnt      : std_logic_vector(19 downto 0);
     variable halffull : std_logic;
   begin
-    if rising_edge(drpclk) then
+    TRIG0(172 downto 170) <= conv_std_logic_vector( state'pos( ph_state ), 3 );
+    if rising_edge(tx_usrclk) then
       if (ph_state = acq_bufstate) or
         (ph_state = delinc) or
         (ph_state = deldec) then
@@ -771,7 +770,6 @@ begin
         end if;
       end if;
 
-      phase_acc_en <= '0';
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
@@ -795,7 +793,7 @@ begin
               ph_state := delinc;
             end if;
             halffull := '0';
-            phase_acc_en <= '1';
+            phase_acc_en <= not phase_acc_en;
           when delinc =>
             if halffull = '0' then
               phase := phase + 1;
@@ -803,7 +801,7 @@ begin
               ph_state := locked;
             end if;
             halffull := '0';
-            phase_acc_en <= '1';
+            phase_acc_en <= not phase_acc_en;
           when others =>
         end case;
         phase_acc <= phase;
@@ -823,9 +821,17 @@ begin
     type state is (idle, a64_0, a64_1, a64_2, a9f_0, a9f_1, a9f_2, a9f_3, a9f_4, a9f_5);
     variable drp_state, next_state : state;
     variable rdy_wait : std_logic;
+    variable phase_acc_en_sync : std_logic_vector(3 downto 0) := (others => '0');
+    variable phase_acc_en_i    : std_logic;
   begin
     if rising_edge(drpclk) then
       rdy_wait := '0';
+      -- synchronize 'phase_acc_en' into drpclock domain. The 'sender' negates the bit and we
+      -- look for a change in the synchronized bit. This allows for both clocks having different
+      -- frequencies and yet propagating a single trigger (as long as the trigger-frequency is
+      -- much lower than the lowest clock).
+      phase_acc_en_sync := phase_acc_en_sync(phase_acc_en_sync'left - 1 downto 0) & phase_acc_en;
+      phase_acc_en_i    := phase_acc_en_sync(phase_acc_en_sync'left) xor phase_acc_en_sync(phase_acc_en_sync'left - 1);
       case drp_state is
         when a64_0 =>
           drpaddr <= '0' & X"64";
@@ -893,7 +899,7 @@ begin
           rdy_wait := '0';
       end case;
       if rdy_wait = '0' or drprdy = '1' then
-        if drp_state = idle and phase_acc_en = '1' then
+        if drp_state = idle and phase_acc_en_i = '1' then
           next_state := a64_0;
         end if;
         drp_state := next_state;
