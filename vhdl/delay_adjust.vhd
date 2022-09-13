@@ -187,7 +187,7 @@ begin
     end if;
   end process;
 
-  cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback) 
+  cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback, adjust_locked_i)
     variable state            : std_logic_vector(2 downto 0) := "000";
     variable cycle_error      : std_logic_vector(15 downto 0);
     variable cnt              : std_logic_vector(4 downto 0) := "00000";
