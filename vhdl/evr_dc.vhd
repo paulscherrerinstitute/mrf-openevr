@@ -320,18 +320,41 @@ begin
     end if;
   end process P_TST_TX;
 
+  B_MEAS : block is
+    signal int_delay_value_i : std_logic_vector(31 downto 0);
+    signal int_delay_update_i : std_logic;
+  begin
+
   int_dly : delay_measure
     port map (
-      clk => sys_clk,
+      clk => refclk,
       beacon_0 => tst_tx_beacon,
       beacon_1 => up_rx_beacon,
       fast_adjust => '0',
       slow_adjust => dc_slow_adjust,
       reset => int_delay_reset,
-      delay_out => int_delay_value,
+      delay_out => int_delay_value_i,
       slow_delay_out => int_slow_delay_value,
-      delay_update_out => int_delay_update,
+      delay_update_out => int_delay_update_i,
       init_done => int_delay_init);  
+
+   P_SYNC : process ( sys_clk ) is
+      variable s : std_logic_vector(2 downto 0) := (others => '0');
+   begin
+     if ( rising_edge( sys_clk ) ) then
+       if ( reset = '1' ) then
+         s := (others => '0');
+         int_delay_value <= (others => '0');
+       else
+         s := int_delay_update_i & s(s'left downto 1);
+         if ( s(1 downto 0) = "10" ) then
+           int_delay_value <= int_delay_value_i;
+         end if;
+       end if;
+     end if;
+   end process P_SYNC;
+
+  end block B_MEAS;
 
   int_dly_adj : delay_adjust
     port map (
