@@ -38,7 +38,6 @@ entity evr_dc is
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
 				     -- enabled, '0' disabled
-    tune_tx_buf     : in  std_logic;
     dc_slow_adjust  : in  std_logic;
     mode_mst        : in  std_logic;
     rx_commaalignen : in  std_logic := '0';
@@ -105,8 +104,6 @@ architecture structure of evr_dc is
       databuf_tx_k    : in  std_logic; -- TX data buffer K-character
       databuf_tx_ena  : out std_logic; -- TX data buffer data enable
       databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
-
-      tune_tx_buf     : in  std_logic;
 
       -- MGT
       mgtIb           : in  transceiver_ob_type;
@@ -275,7 +272,6 @@ begin
 
       delay_inc => up_delay_inc,
       delay_dec => up_delay_dec,
-      tune_tx_buf => tune_tx_buf,
       
       reset => reset,
 

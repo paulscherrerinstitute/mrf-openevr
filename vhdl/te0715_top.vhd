@@ -74,7 +74,6 @@ architecture structure of zynq_top is
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
 				     -- enabled, '0' disabled
-    tune_tx_buf     : in  std_logic;
     dc_slow_adjust  : in  std_logic;
     mode_mst        : in  std_logic;
     rx_commaalignen : in  std_logic := '0';
@@ -192,7 +191,6 @@ architecture structure of zynq_top is
   signal int_delay_update    : std_logic;
   signal int_delay_updcnt    : std_logic_vector( 3 downto 0) := (others => '0');
   signal int_delay_updsyn    : std_logic := '0';
-  signal tune_tx_buf         : std_logic;
   signal dc_slow_adjust      : std_logic;
   signal mode_mst            : std_logic;
 
@@ -319,7 +317,6 @@ begin
       databuf_tx_ena => databuf_tx_ena,
       databuf_tx_mode => databuf_tx_mode,
 
-      tune_tx_buf => tune_tx_buf,
       dc_slow_adjust => dc_slow_adjust,
       mode_mst => mode_mst,
       rx_commaalignen => rxCommaAlignEn,
@@ -371,7 +368,7 @@ begin
   dc_mode           <= not rwRegs(0)(0);
   databuf_rx_mode   <= not rwRegs(0)(1);
   databuf_tx_mode   <= not rwRegs(0)(2);
-  tune_tx_buf       <=     rwRegs(0)(3);
+
 
   rx_clear_viol     <= rwRegs(0)(4);
   tx_reset          <= rwRegs(0)(5);

@@ -67,8 +67,6 @@ entity transceiver_dc is
     databuf_tx_ena  : out std_logic; -- TX data buffer data enable
     databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
 
-    tune_tx_buf     : in  std_logic;
-   
     -- MGT
     mgtIb           : in  transceiver_ob_type;
     mgtOb           : out transceiver_ib_type
@@ -774,7 +772,7 @@ begin
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
-            if reset = '0' and tune_tx_buf = '1'  then
+            if reset = '0' and mgtIb.txdlyadjen = '1' then
               ph_state := init_delay;
             end if;
           when init_delay =>
