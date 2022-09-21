@@ -95,7 +95,7 @@ begin
   -- !!!!!!!!!!!!!!!!!!!!!!!!!!!
   -- tuning the delay does currently not work (necessary signals not 
   -- routed out by wizard!)
-  ob.txdlyadjen   <= '1';
+  ob.txdlyadjen   <= '0';
 
   -- not routed out by wizard
   ob.rxcdrlocked  <= '1';
@@ -112,8 +112,8 @@ begin
       SOFT_RESET_TX_IN => txRst_i, -- in STD_LOGIC;
       SOFT_RESET_RX_IN => rxRst_i, -- in STD_LOGIC;
       DONT_RESET_ON_DATA_ERROR_IN => '0', -- in STD_LOGIC;
-      Q0_CLK1_GTREFCLK_PAD_N_IN => refClkN, -- in STD_LOGIC;
-      Q0_CLK1_GTREFCLK_PAD_P_IN => refClkP, -- in STD_LOGIC;
+      Q0_CLK0_GTREFCLK_PAD_N_IN => refClkN, -- in STD_LOGIC;
+      Q0_CLK0_GTREFCLK_PAD_P_IN => refClkP, -- in STD_LOGIC;
       GT0_TX_FSM_RESET_DONE_OUT => open,    -- out STD_LOGIC;
       GT0_RX_FSM_RESET_DONE_OUT => rxRstDone, -- out STD_LOGIC;
       -- monitored by the rx startup FSM; purpose not clear, in particular
