@@ -123,9 +123,10 @@ architecture structure of transceiver_dc_gt is
   
 
   -- this module is not driving DRP itself (wizard-generated ones might!)
-  ob.drpbsy <= '0';
-  drpclk    <= sys_clk;
-  ob.drpclk <= drpclk;
+  ob.drpbsy     <= '0';
+  drpclk        <= sys_clk;
+  ob.drpclk     <= drpclk;
+  ob.txdlyadjen <= '1';
 
   gtxe2_X0Y0_i :GTXE2_CHANNEL
     generic map

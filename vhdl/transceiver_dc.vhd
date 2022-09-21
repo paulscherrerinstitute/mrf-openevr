@@ -773,7 +773,7 @@ begin
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
-            if reset = '0' then
+            if reset = '0' and mgtIb.txdlyadjen = '1' then
               ph_state := init_delay;
             end if;
           when init_delay =>

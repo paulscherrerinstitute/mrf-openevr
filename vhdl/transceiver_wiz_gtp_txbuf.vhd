@@ -93,6 +93,11 @@ begin
   -- wizard internally uses sys_clk
   ob.drpclk       <= sys_clk;
 
+  -- !!!!!!!!!!!!!!!!!!!!!!!!!!!
+  -- tuning the delay does currently not work (necessary signals not 
+  -- routed out by wizard!)
+  ob.txdlyadjen   <= '1';
+
   -- not routed out by wizard
   ob.rxcdrlocked  <= '1';
   ob.rxresetdone  <= synRstDone(synRstDone'left);

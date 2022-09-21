@@ -102,6 +102,7 @@ begin
   end process P_DRPA;
 
   ob.drpclk       <= sys_clk;
+  ob.txdlyadjen   <= '0';
 
   ob.rxdisperr    <= rxStatus( 7 downto 6 );
   ob.rxnotintable <= rxStatus( 5 downto 4 );

@@ -184,7 +184,6 @@ architecture structure of zynq_top is
   signal int_delay_update    : std_logic;
   signal int_delay_updcnt    : std_logic_vector( 3 downto 0) := (others => '0');
   signal int_delay_updsyn    : std_logic := '0';
-  signal tune_tx_buf         : std_logic;
   signal dc_slow_adjust      : std_logic;
   signal mode_mst            : std_logic;
 
@@ -355,7 +354,6 @@ begin
   dc_mode           <= not rwRegs(0)(0);
   databuf_rx_mode   <= not rwRegs(0)(1);
   databuf_tx_mode   <= not rwRegs(0)(2);
-  tune_tx_buf       <= not rwRegs(0)(3);
 
   rx_clear_viol     <= rwRegs(0)(4);
   tx_reset          <= rwRegs(0)(5);
