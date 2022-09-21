@@ -6,6 +6,7 @@ library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
 use work.transceiver_pkg.all;
+use work.evr_pkg.all;
 
 entity evr_dc is
   port (
@@ -37,6 +38,10 @@ entity evr_dc is
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
 				     -- enabled, '0' disabled
+    tune_tx_buf     : in  std_logic;
+    dc_slow_adjust  : in  std_logic;
+    mode_mst        : in  std_logic;
+    rx_commaalignen : in  std_logic := '0';
 
     reset           : in  std_logic; -- Transceiver reset
 
@@ -45,6 +50,9 @@ entity evr_dc is
     delay_comp_value  : in std_logic_vector(31 downto 0);
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
+
+    int_delay_value_out   : out std_logic_vector(31 downto 0);
+    int_delay_update_out  : out std_logic;
     
     -- MGT
     mgtIb           : in  transceiver_ob_type;
@@ -97,6 +105,8 @@ architecture structure of evr_dc is
       databuf_tx_k    : in  std_logic; -- TX data buffer K-character
       databuf_tx_ena  : out std_logic; -- TX data buffer data enable
       databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
+
+      tune_tx_buf     : in  std_logic;
 
       -- MGT
       mgtIb           : in  transceiver_ob_type;
@@ -201,6 +211,13 @@ architecture structure of evr_dc is
   signal up_databuf_tx_ena  : std_logic;
   signal up_databuf_tx_mode : std_logic;
 
+  signal tst_tx_beacon      : std_logic := '0';
+  signal tst_tx_beacon_cnt  : std_logic_vector(7 downto 0);
+  signal tst_tx_splice      : transceiver_ib_type;
+  signal tst_tx_data        : std_logic_vector(15 downto 0) := (others => '0');
+  signal tst_tx_charisk     : std_logic_vector( 1 downto 0) := (others => '0');
+  signal tst_tx_data_sync   : std_logic_vector( 1 downto 0) := (others => '0');
+
   signal delay_comp_locked  : std_logic;
 
   signal da_feedback        : std_logic_vector(1 downto 0);
@@ -228,7 +245,6 @@ architecture structure of evr_dc is
   signal int_delay_reset      : std_logic;
 
   signal dc_fast_adjust       : std_logic;
-  signal dc_slow_adjust       : std_logic;
 
   signal dc_status        : std_logic_vector(31 downto 0);
 
@@ -259,6 +275,7 @@ begin
 
       delay_inc => up_delay_inc,
       delay_dec => up_delay_dec,
+      tune_tx_buf => tune_tx_buf,
       
       reset => reset,
 
@@ -270,15 +287,49 @@ begin
       databuf_tx_ena => databuf_tx_ena,
       databuf_tx_mode => databuf_tx_mode,
       mgtIb           => mgtIb,
-      mgtOb           => mgtOb
+      mgtOb           => tst_tx_splice
       );
+
+  P_SPLICE : process (tst_tx_splice, tst_tx_data, tst_tx_charisk, tst_tx_beacon_cnt, mode_mst, rx_commaalignen) is
+  begin
+    mgtOb                <= tst_tx_splice;
+    mgtOb.rxcommaalignen <= rx_commaalignen;
+    if ( mode_mst = '1' ) then
+      mgtOb.txdata    <= tst_tx_data;
+      mgtOb.txcharisk <= tst_tx_charisk;
+    end if;
+    tst_tx_beacon   <= '0';
+    if ( tst_tx_beacon_cnt < 4 ) then
+      tst_tx_beacon <= '1';
+    end if;
+  end process P_SPLICE;
+
+  P_TST_TX : process (mgtIb.txusrclk) is
+    constant C_BEACON_PERIOD : natural := 32;
+  begin
+    if ( rising_edge( mgtIb.txusrclk ) ) then
+      tst_tx_data_sync         <= tst_tx_data_sync + 1;
+      tst_tx_data              <= (others => '0');
+      tst_tx_charisk           <= (others => '0');
+      if ( tst_tx_beacon_cnt = C_BEACON_PERIOD - 1 ) then
+        tst_tx_beacon_cnt        <= (others => '0');
+        tst_tx_data(15 downto 8) <= C_EVENT_BEACON;
+      else
+        tst_tx_beacon_cnt        <= tst_tx_beacon_cnt + 1;
+        if ( tst_tx_data_sync = 0 ) then
+           tst_tx_data(15 downto 8) <= X"BC"; -- K28.5
+           tst_tx_charisk(1)        <= '1';
+        end if;
+      end if;
+    end if;
+  end process P_TST_TX;
 
   int_dly : delay_measure
     port map (
-      clk => refclk,
-      beacon_0 => up_rx_beacon,
-      beacon_1 => up_rx_int_beacon,
-      fast_adjust => dc_fast_adjust,
+      clk => sys_clk,
+      beacon_0 => tst_tx_beacon,
+      beacon_1 => up_rx_beacon,
+      fast_adjust => '0',
       slow_adjust => dc_slow_adjust,
       reset => int_delay_reset,
       delay_out => int_delay_value,
@@ -425,8 +476,10 @@ begin
   up_databuf_tx_mode <= databuf_tx_mode;
 
   dc_fast_adjust <= not delay_comp_locked;
-  dc_slow_adjust <= '0'; -- test_out(0);
   delay_comp_locked_out <= delay_comp_locked;
+
+  int_delay_value_out  <= int_delay_value;
+  int_delay_update_out <= int_delay_update;
   
   run_on_refclk <= '0';
   test_mode <= '0';

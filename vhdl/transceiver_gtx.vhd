@@ -528,8 +528,8 @@ architecture structure of transceiver_dc_gt is
         RXBYTEREALIGN                   =>      RXBYTEREALIGN_out,
         RXCOMMADET                      =>      RXCOMMADET_out,
         RXCOMMADETEN                    =>      gnd,
-        RXMCOMMAALIGNEN                 =>      gnd,
-        RXPCOMMAALIGNEN                 =>      gnd,
+        RXMCOMMAALIGNEN                 =>      ib.rxcommaalignen,
+        RXPCOMMAALIGNEN                 =>      ib.rxcommaalignen,
         ------------------ Receive Ports - RX Channel Bonding Ports ----------------
         RXCHANBONDSEQ                   =>      open,
         RXCHBONDEN                      =>      gnd,

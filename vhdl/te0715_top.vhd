@@ -74,6 +74,11 @@ architecture structure of zynq_top is
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
 				     -- enabled, '0' disabled
+    tune_tx_buf     : in  std_logic;
+    dc_slow_adjust  : in  std_logic;
+    mode_mst        : in  std_logic;
+    rx_commaalignen : in  std_logic := '0';
+
     reset           : in  std_logic; -- Transmitter reset
 
     -- Delay compensation signals
@@ -82,7 +87,10 @@ architecture structure of zynq_top is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
 
-    -- MGT
+    int_delay_value_out   : out std_logic_vector(31 downto 0);
+    int_delay_update_out  : out std_logic;
+
+     -- MGT
     mgtIb             : in  transceiver_ob_type;
     mgtOb             : out transceiver_ib_type
     );
@@ -311,12 +319,20 @@ begin
       databuf_tx_ena => databuf_tx_ena,
       databuf_tx_mode => databuf_tx_mode,
 
+      tune_tx_buf => tune_tx_buf,
+      dc_slow_adjust => dc_slow_adjust,
+      mode_mst => mode_mst,
+      rx_commaalignen => rxCommaAlignEn,
+ 
       reset => tx_reset,
 
       delay_comp_update => delay_comp_update,
       delay_comp_value => delay_comp_value,
       delay_comp_target => delay_comp_target,
       delay_comp_locked_out => delay_comp_locked,
+
+      int_delay_value_out => int_delay_value,
+      int_delay_update_out => int_delay_update,
 
       mgtIb => mgtOb,
       mgtOb => mgtIb
@@ -355,7 +371,7 @@ begin
   dc_mode           <= not rwRegs(0)(0);
   databuf_rx_mode   <= not rwRegs(0)(1);
   databuf_tx_mode   <= not rwRegs(0)(2);
-  tune_tx_buf       <= not rwRegs(0)(3);
+  tune_tx_buf       <=     rwRegs(0)(3);
 
   rx_clear_viol     <= rwRegs(0)(4);
   tx_reset          <= rwRegs(0)(5);

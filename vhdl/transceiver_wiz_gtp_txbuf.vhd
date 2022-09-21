@@ -36,7 +36,7 @@ entity transceiver_dc_gt is
       REFCLK0N                     : in  std_logic;
       REFCLK1P                     : in  std_logic;
       REFCLK1N                     : in  std_logic;
-            
+
       rxp                          : in  std_logic;
       rxn                          : in  std_logic;
 
@@ -56,7 +56,6 @@ architecture structure of transceiver_dc_gt is
   attribute ASYNC_REG of synRstDone : signal is "TRUE";
 
   signal rxRstDone      : std_logic;
-  signal rxCommaAlignEn : std_logic := '0';
 
   signal refClkP        : std_logic;
   signal refClkN        : std_logic;
@@ -86,7 +85,7 @@ begin
   -- disable automatic comma-aligment; only PCS mode available which introduces
   -- non-deterministic latencies. The evr_dc keeps resetting the GT until aligment
   -- is achieved...
-  rxCommaAlignEn <= '0';
+ -- rxCommaAlignEn <= '0';
 
   -- not routed out by wizard when common block is in the core
   ob.drpbsy       <= '0';
@@ -108,10 +107,10 @@ begin
       SOFT_RESET_TX_IN => txRst_i, -- in STD_LOGIC;
       SOFT_RESET_RX_IN => rxRst_i, -- in STD_LOGIC;
       DONT_RESET_ON_DATA_ERROR_IN => '0', -- in STD_LOGIC;
-      Q0_CLK0_GTREFCLK_PAD_N_IN => refClkN, -- in STD_LOGIC;
-      Q0_CLK0_GTREFCLK_PAD_P_IN => refClkP, -- in STD_LOGIC;
-      GT0_TX_FSM_RESET_DONE_OUT => rxRstDone, -- out STD_LOGIC;
-      GT0_RX_FSM_RESET_DONE_OUT => open, -- out STD_LOGIC;
+      Q0_CLK1_GTREFCLK_PAD_N_IN => refClkN, -- in STD_LOGIC;
+      Q0_CLK1_GTREFCLK_PAD_P_IN => refClkP, -- in STD_LOGIC;
+      GT0_TX_FSM_RESET_DONE_OUT => open,    -- out STD_LOGIC;
+      GT0_RX_FSM_RESET_DONE_OUT => rxRstDone, -- out STD_LOGIC;
       -- monitored by the rx startup FSM; purpose not clear, in particular
       -- how it differs from rxUsrRdy
       GT0_DATA_VALID_IN => '1', -- in STD_LOGIC;
@@ -137,8 +136,8 @@ begin
       gt0_gtprxp_in => rxp, -- in STD_LOGIC;
       gt0_rxphmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
       gt0_rxphslipmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
-      gt0_rxmcommaalignen_in => rxCommaAlignEn, -- in STD_LOGIC;
-      gt0_rxpcommaalignen_in => rxCommaAlignEn, -- in STD_LOGIC;
+      gt0_rxmcommaalignen_in => ib.rxcommaalignen, -- in STD_LOGIC;
+      gt0_rxpcommaalignen_in => ib.rxcommaalignen, -- in STD_LOGIC;
       gt0_dmonitorout_out => open, -- out STD_LOGIC_VECTOR ( 14 downto 0 );
       gt0_rxlpmhfhold_in => '0', -- in STD_LOGIC;
       gt0_rxlpmlfhold_in => '0', -- in STD_LOGIC;

@@ -48,6 +48,7 @@ package transceiver_pkg is
 
       gtrxreset             : std_logic;
       rxusrrdy              : std_logic;
+      rxcommaalignen        : std_logic;
 
       gttxreset             : std_logic;
       txusrrdy              : std_logic;

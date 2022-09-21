@@ -250,6 +250,7 @@ begin
       end if;
       if reset = '1' then
         val_valid := (others => '0');
+        delay_out <= (others => '0');
       end if;
     end if;
   end process;

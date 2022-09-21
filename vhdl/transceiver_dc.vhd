@@ -66,6 +66,8 @@ entity transceiver_dc is
     databuf_tx_k    : in  std_logic; -- TX data buffer K-character
     databuf_tx_ena  : out std_logic; -- TX data buffer data enable
     databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
+
+    tune_tx_buf     : in  std_logic;
    
     -- MGT
     mgtIb           : in  transceiver_ob_type;
@@ -647,8 +649,7 @@ begin
       rx_gtreset_i <= cnt(cnt'high);
       if ( cnt(cnt'high) = '1' ) then
         rx_gtresetting <= '1';
-      end if;
-      if ( rx_resetdone = '1' ) then
+      elsif ( rx_resetdone = '1' ) then
         rx_gtresetting <= '0';
       end if;
       rx_usrrdy_i <= not cnt(cnt'high);
@@ -773,7 +774,7 @@ begin
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
-            if reset = '0' then
+            if reset = '0' and tune_tx_buf = '1'  then
               ph_state := init_delay;
             end if;
           when init_delay =>

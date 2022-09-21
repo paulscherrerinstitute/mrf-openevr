@@ -114,8 +114,8 @@ begin
 
   rxControl(0) <= ib.gtrxreset or ib.mgtreset;
   rxControl(1) <= RX_POLARITY;
-  rxControl(2) <= '0';
-  rxControl(3) <= '0';
+  rxControl(2) <= ib.rxcommaalignen;
+  rxControl(3) <= ib.rxcommaalignen;
   rxControl(15 downto 4) <= (others => '0');
 
   txControl(0) <= ib.gttxreset or ib.mgtreset;

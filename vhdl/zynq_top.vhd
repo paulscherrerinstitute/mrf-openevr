@@ -8,6 +8,13 @@ use UNISIM.Vcomponents.ALL;
 use work.transceiver_pkg.all;
 
 entity zynq_top is
+  generic (
+    -- MGT RX&TX signal pair polarity
+    RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
+    TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
+    -- MGT reference clock selection
+    REFCLKSEL                    : std_logic := '1' -- 0 - REFCLK0, 1 - REFCLK1
+    );
   port (
     PL_CLK       : in std_logic;
     PL_LED1      : out std_logic;  -- Carrier D6
@@ -37,13 +44,6 @@ end zynq_top;
 architecture structure of zynq_top is
 
   component evr_dc is
-      generic (
-    -- MGT RX&TX signal pair polarity
-    RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-    TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-    -- MGT reference clock selection
-    REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-    );
   port (
     -- System bus clock
     sys_clk         : in std_logic;
@@ -206,9 +206,9 @@ begin
 
   i_mgt : entity work.transceiver_dc_gt
     generic map (
-      RX_POLARITY => '0',
-      TX_POLARITY => '0',
-      refclksel   => '1')
+      RX_POLARITY => RX_POLARITY,
+      TX_POLARITY => TX_POLARITY,
+      refclksel   => REFCLKSEL)
     port map (
       sys_clk  => sys_clk,
 
