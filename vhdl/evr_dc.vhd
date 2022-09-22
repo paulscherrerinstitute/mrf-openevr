@@ -118,8 +118,8 @@ architecture structure of evr_dc is
       MAX_DELAY_BITS         : integer := 16;
       FRAC_DELAY_BITS        : integer := 16;
       CYCLE_CNT_BITS_0       : integer := 10;
-      CYCLE_CNT_BITS_1       : integer := 16;
-      CYCLE_CNT_BITS_2       : integer := 20);
+      CYCLE_CNT_BITS_1       : integer := 20;
+      CYCLE_CNT_BITS_2       : integer := 24);
     port (
       clk              : in std_logic;
       beacon_0         : in std_logic;
