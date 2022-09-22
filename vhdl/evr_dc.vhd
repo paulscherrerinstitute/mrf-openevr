@@ -352,7 +352,9 @@ begin
          end if;
        end if;
      end if;
+     int_delay_update <= s(0);
    end process P_SYNC;
+
 
   end block B_MEAS;
 
