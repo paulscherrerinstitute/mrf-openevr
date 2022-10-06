@@ -245,6 +245,7 @@ architecture structure of evr_dc is
 
   signal dc_status            : std_logic_vector(31 downto 0);
 
+  signal reset_i              : std_logic := '0';
   signal mgtEventReset        : std_logic := '0';
   signal mgtEventResetTrg     : std_logic := '0';
   signal mgtEventResetClear   : std_logic := '0';
