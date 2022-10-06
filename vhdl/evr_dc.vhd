@@ -279,7 +279,7 @@ begin
     if ( mgtEventResetClear = '1' ) then
         mgtEventResetTrg <= '0';
     elsif ( rising_edge( event_clk ) ) then
-      if ( up_event_rxd = x"aa" ) then
+      if ( ( mode_mst = '0' ) and ( up_event_rxd = x"aa" ) ) then
         mgtEventResetTrg <= '1';
       end if;
     end if;
