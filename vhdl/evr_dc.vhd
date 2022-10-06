@@ -243,9 +243,46 @@ architecture structure of evr_dc is
 
   signal dc_fast_adjust       : std_logic;
 
-  signal dc_status        : std_logic_vector(31 downto 0);
+  signal dc_status            : std_logic_vector(31 downto 0);
+
+  signal mgtEventReset        : std_logic := '0';
+  signal mgtEventResetTrg     : std_logic := '0';
+  signal mgtEventResetClear   : std_logic := '0';
+  signal mgtEventResetSync    : std_logic_vector(2 downto 0) := (others => '0');
+  signal mgtEventResetCount   : natural range 0 to 1000 := 0;
 
 begin
+
+  reset_i <= reset or mgtEventReset;
+
+  P_MGT_EVT_RST_SYSCLK : process ( sys_clk ) is
+  begin
+    if ( rising_edge( sys_clk ) ) then
+      mgtEventResetSync <= mgtEventResetTrg & mgtEventResetSync(mgtEventResetSync'left downto 1);
+      if ( mgtEventResetCount = 0 ) then
+         mgtEventReset       <= '0';
+      else
+         mgtEventResetCount  <= mgtEventResetCount - 1;
+      end if;
+      if    ( mgtEventResetSync(1 downto 0) = "10" ) then
+         mgtEventReset       <= '1';
+         mgtEventResetCount  <= 1000;
+      end if;
+    end if;
+  end process P_MGT_EVT_RST_SYSCLK;
+
+  mgtEventResetClear <= mgtEventResetSync(0);
+
+  P_MGT_EVT_RST_EVTCLK : process ( event_clk, mgtEventResetClear ) is
+  begin
+    if ( mgtEventResetClear = '1' ) then
+        mgtEventResetTrg <= '0';
+    elsif ( rising_edge( event_clk ) ) then
+      if ( up_event_rxd = x"aa" ) then
+        mgtEventResetTrg <= '1';
+      end if;
+    end if;
+  end process P_MGT_EVT_RST_EVTCLK;
 
   i_upstream : transceiver_dc
     port map (
@@ -273,7 +310,7 @@ begin
       delay_inc => up_delay_inc,
       delay_dec => up_delay_dec,
       
-      reset => reset,
+      reset => reset_i,
 
       -- Transmitter side connections
       event_txd => event_txd,
@@ -342,7 +379,7 @@ begin
       variable s : std_logic_vector(2 downto 0) := (others => '0');
    begin
      if ( rising_edge( sys_clk ) ) then
-       if ( reset = '1' ) then
+       if ( reset_i = '1' ) then
          s := (others => '0');
          int_delay_value <= (others => '0');
        else
