@@ -375,7 +375,7 @@ begin
   sys_reset         <= rwRegs(0)(6);
   dc_slow_adjust    <= rwRegs(0)(7);
   rxCommaAlignEn    <= rwRegs(0)(8);
-  mode_mst          <= not rwRegs(0)(9);
+  mode_mst          <= rwRegs(0)(9);
 
   ctl               <= rwRegs(0)(31 downto 24);
 
