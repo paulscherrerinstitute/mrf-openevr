@@ -305,7 +305,7 @@ begin
   begin
     if ( rising_edge( mgtIb.txusrclk ) ) then
       tst_tx_data_sync         <= tst_tx_data_sync + 1;
-      tst_tx_data              <= event_txd;
+      tst_tx_data              <= event_txd & x"00";
       tst_tx_charisk           <= (others => '0');
       if ( tst_tx_beacon_cnt = C_BEACON_PERIOD - 1 ) then
         tst_tx_beacon_cnt        <= (others => '0');
