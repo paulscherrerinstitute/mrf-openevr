@@ -216,6 +216,8 @@ architecture structure of zynq_top is
   signal mgtOb  : transceiver_ob_type;
 
   signal rxCommaAlignEn: std_logic;
+  signal remoteRst     : std_logic;
+  signal remoteRstSyn  : std_logic_vector(2 downto 0) := (others => '0');
    
 begin
 
@@ -377,6 +379,8 @@ begin
   rxCommaAlignEn    <= rwRegs(0)(8);
   mode_mst          <= not rwRegs(0)(9);
 
+  remoteRst         <= rwRegs(0)(12);
+
   ctl               <= rwRegs(0)(31 downto 24);
 
   delay_comp_target <= rwRegs(1);
@@ -409,15 +413,20 @@ begin
 
   -- Process to send out event 0x01 periodically
   process (refclk)
-    variable count : std_logic_vector(31 downto 0) := X"FFFFFFFF";
-    variable blink : std_logic := '0';
+    variable count  : std_logic_vector(31 downto 0) := X"FFFFFFFF";
+    variable blink  : std_logic := '0';
+    variable rstSyn : std_logic_vector(2 downto 0) := (others => '0');
   begin
     if rising_edge(refclk) then
       event_txd <= X"00";
+      rstSyn    <= remoteRst & remoteRstSyn(remoteRstSyn'left downto 1);
       if count(26) = '0' then
 	event_txd <= rwRegs(2)(31 downto 24);
 	count := X"FFFFFFFF";
     blink := not blink;
+      end if;
+      if ( remoteRstSyn(1 downto 0) = "10" ) then
+        event_txd <= X"AD";
       end if;
       count := count - 1;
     end if;
