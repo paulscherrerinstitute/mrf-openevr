@@ -47,7 +47,6 @@ entity transceiver_dc is
     rx_beacon       : out   std_logic; -- Received DC beacon
     tx_beacon       : out   std_logic; -- Transmitted DC beacon
     rx_int_beacon   : out   std_logic; -- Received DC beacon after DC FIFO
-    rx_commaalignen : in    std_logic;
 
     delay_inc       : in    std_logic; -- Insert extra event in FIFO
     delay_dec       : in    std_logic; -- Drop event from FIFO
@@ -373,7 +372,7 @@ begin
             link_ok <= '1';
           end if;
       
-          if count = "1111" and rx_commaalignen = '0' then
+          if count = "1111" then
             rxcdrreset <= '1';
           end if;
 

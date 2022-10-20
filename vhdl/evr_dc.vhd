@@ -85,7 +85,6 @@ architecture structure of evr_dc is
       rx_beacon       : out   std_logic; -- Received DC beacon
       tx_beacon       : out   std_logic; -- Transmitted DC beacon
       rx_int_beacon   : out   std_logic; -- Received DC beacon after DC FIFO
-      rx_commaalignen : in    std_logic;
 
       delay_inc       : in    std_logic; -- Insert extra event in FIFO
       delay_dec       : in    std_logic; -- Drop event from FIFO
@@ -308,7 +307,6 @@ begin
       rx_beacon => up_rx_beacon,
       tx_beacon => up_tx_beacon,
       rx_int_beacon => up_rx_int_beacon,
-      rx_commaalignen => rx_commaalignen,
 
       delay_inc => up_delay_inc,
       delay_dec => up_delay_dec,
