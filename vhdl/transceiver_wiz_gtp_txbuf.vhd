@@ -15,6 +15,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 library unisim;
 use     unisim.vcomponents.all;
@@ -55,13 +56,20 @@ architecture structure of transceiver_dc_gt is
   signal rxRecClk_nb    : std_logic;
   signal txUsrClk_i     : std_logic;
   signal txOutClk_nb    : std_logic;
+  signal txRefClk_nb    : std_logic_vector(1 downto 0);
+  signal txRefClk       : std_logic;
+  signal txBufStatus    : std_logic_vector(1 downto 0);
 
   attribute ASYNC_REG   : string;
 
-  signal synRstDone     : std_logic_vector(1 downto 0) := (others => '0');
-  attribute ASYNC_REG of synRstDone      : signal is "TRUE";
+  signal synRxRstDone     : std_logic_vector(1 downto 0) := (others => '0');
+  signal synTxRstDone     : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of synRxRstDone      : signal is "TRUE";
+  attribute ASYNC_REG of synTxRstDone      : signal is "TRUE";
 
   signal rxRstDone      : std_logic;
+  signal txRstDone      : std_logic;
+  signal pllLocked      : std_logic := '0';
 
   signal refClkP        : std_logic;
   signal refClkN        : std_logic;
@@ -71,7 +79,16 @@ architecture structure of transceiver_dc_gt is
 
   signal pllIb          : GtpCommonIbArray( 1 downto 0);
   signal pllOb          : GtpCommonObArray( 1 downto 0);
-  
+
+  function toInt(x : std_logic) return natural is
+  begin
+    if ( x = '1' ) then return 1; else return 0; end if;
+  end function toInt;
+
+  signal pippmStepSize   : std_logic_vector(4 downto 0) := (others => '0');
+  signal pippmEn         : std_logic := '0';
+
+ 
 begin
 
   G_REFCLK0 : if ( REFCLKSEL = '0' ) generate
@@ -87,7 +104,8 @@ begin
   P_SYNC : process ( rxRecClk_i ) is
   begin
     if ( rising_edge( rxRecClk_i ) ) then
-      synRstDone <= synRstDone(synRstDone'left-1 downto 0) & rxRstDone;
+      synRxRstDone <= synRxRstDone(synRxRstDone'left-1 downto 0) & rxRstDone;
+      synTxRstDone <= synTxRstDone(synTxRstDone'left-1 downto 0) & (txRstDone and pllLocked);
     end if;
   end process P_SYNC;
 
@@ -107,12 +125,15 @@ begin
 
   -- not routed out by wizard
   ob.rxcdrlocked  <= '1';
-  ob.rxresetdone  <= synRstDone(synRstDone'left);
+  ob.rxresetdone  <= synRxRstDone(synRxRstDone'left);
+  ob.txresetdone  <= synTxRstDone(synTxRstDone'left);
   ob.rxrecclk     <= rxRecClk_i;
+  ob.txbufstatus  <= txBufStatus;
 
   U_TXOUTCLK_BUF : BUFG
     port map (
-      I => txOutClk_nb,
+      I => txRefClk_nb( toInt( REFCLKSEL ) ),
+--      I => txOutClk_nb,
       O => ob.txoutclk
     );
 
@@ -121,7 +142,6 @@ begin
       I => rxRecClk_nb,
       O => rxRecClk_i
     );
-
 
   rxRst_i         <= ib.gtrxreset or ib.mgtreset;
   txRst_i         <= ib.gttxreset or ib.mgtreset;
@@ -144,7 +164,7 @@ begin
       SOFT_RESET_RX_IN => rxRst_i, -- in STD_LOGIC;
       DONT_RESET_ON_DATA_ERROR_IN => '0', -- in STD_LOGIC;
       GT0_DRP_BUSY_OUT => ob.drpbsy, -- out STD_LOGIC;
-      GT0_TX_FSM_RESET_DONE_OUT => open,    -- out STD_LOGIC;
+      GT0_TX_FSM_RESET_DONE_OUT => txRstDone, -- out STD_LOGIC;
       GT0_RX_FSM_RESET_DONE_OUT => rxRstDone, -- out STD_LOGIC;
       -- monitored by the rx startup FSM; purpose not clear, in particular
       -- how it differs from rxUsrRdy
@@ -183,13 +203,13 @@ begin
       gt0_rxresetdone_out => open, -- out STD_LOGIC;
       gt0_gttxreset_in => '0', -- in STD_LOGIC;
       gt0_txuserrdy_in => ib.txusrrdy, -- in STD_LOGIC;
-      gt0_txpippmen_in => ib.txpippmen, -- in STD_LOGIC;
-      gt0_txpippmstepsize_in => ib.txpippmstepsize, -- in STD_LOGIC_VECTOR ( 4 downto 0 );
+      gt0_txpippmen_in => pippmen, -- in STD_LOGIC;
+      gt0_txpippmstepsize_in => pippmstepsize, -- in STD_LOGIC_VECTOR ( 4 downto 0 );
       gt0_txdata_in => ib.txdata, -- in STD_LOGIC_VECTOR ( 15 downto 0 );
       gt0_txusrclk_in  => txUsrClk_i, -- in STD_LOGIC;
       gt0_txusrclk2_in  => txUsrClk_i, -- in STD_LOGIC;
       gt0_txcharisk_in => ib.txcharisk, -- in STD_LOGIC_VECTOR ( 1 downto 0 );
-      gt0_txbufstatus_out => ob.txbufstatus, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
+      gt0_txbufstatus_out => txBufStatus, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_gtptxn_out => txn, -- out STD_LOGIC;
       gt0_gtptxp_out => txp, -- out STD_LOGIC;
       gt0_txoutclk_out => txOutClk_nb, -- out STD_LOGIC;
@@ -220,7 +240,9 @@ begin
          GTREFCLK_P_IN(0) => REFCLK0P,
          GTREFCLK_P_IN(1) => REFCLK1P,
          GTREFCLK_N_IN(0) => REFCLK0N,
-         GTREFCLK_N_IN(1) => REFCLK1N
+         GTREFCLK_N_IN(1) => REFCLK1N,
+
+         GTREFCLK_OUT     => txRefClk_nb
       );
 
    pllIb(1)       <= GTP_COMMON_IB_INIT_C;
@@ -231,5 +253,90 @@ begin
    pllIb(0).pllRefClkSel(1) <=     REFCLKSEL;
    pllIb(0).pllRefClkSel(0) <= not REFCLKSEL;
 
-  ob.cpll_locked <= pllOb(0).pllLock; 
+   ob.cpll_locked <= pllOb(0).pllLock; 
+
+  B_PLL : block is
+    signal filterCnt         : unsigned(19 downto 0) := (others => '1');
+    signal freq              : signed(15 downto 0) := (others => '0');
+    signal freqm             : signed(15 downto 0) := (others => '0');
+    signal freqmax           : signed(15 downto 0) := to_signed( 5120, 16);
+    signal fmod              : signed(15 downto 0) := (others => '0');
+
+    signal decm              : unsigned(15 downto 0) := to_unsigned(15, 16);
+    signal pstep             : signed  (15 downto 0) := to_signed  ( 2, 16);
+    signal istep             : signed  (15 downto 0) := to_signed  ( 0, 16);
+    signal ishft             : unsigned(15 downto 0) := to_unsigned( 3, 16);
+    signal mshft             : unsigned(15 downto 0) := to_unsigned(15, 16);
+    signal piVcoRst          : std_logic := '1';
+    signal pllFInc           : std_logic := '0';
+    signal pllcen            : std_logic := '0';
+
+  begin
+
+  U_VCO : entity work.pivco
+    generic map (
+      WIDTH_G => freq'length
+    )
+    port map (
+      clk     => txUsrClk_i,
+      rst     => piVcoRst,
+      ceo     => pllcen,
+      fmod    => fmod,
+      freqmax => freqmax,
+      freqctl => freq
+    );
+
+  U_PLL : entity work.bbpll
+    generic map (
+      WIDTH_G => freq'length
+    )
+    port map (
+      clk     => txUsrClk_i,
+      rst     => piVcoRst,
+      cen     => pllcen,
+
+      fInc    => pllFInc,
+      decm    => decm,
+      pstep   => pstep,
+      istep   => istep,
+      ishft   => ishft,
+      mshft   => mshft,
+      freq    => freq,
+      freqm   => freqm
+    );
+
+  -- for now - just wait...
+  P_LOCKDET : process ( txUsrClk_i ) is
+    variable l : std_logic;
+  begin
+    if ( rising_edge( txUsrClk_i ) ) then
+      if ( txRst_i = '1' ) then
+        piVcoRst      <= '1';
+        pllLocked     <= '0';
+      end if;
+      if ( txRstDone = '1' ) then
+        piVcoRst      <= '0';
+      end if;
+      if ( piVcoRst = '1' ) then
+        pllLocked <= '0';
+        filterCnt <= (others => '1');
+      elsif ( filterCnt = 0 ) then
+        pllLocked <= '1';
+      else
+        filterCnt <= filterCnt - 1;
+      end if;
+      if ( txBufStatus(1) = '1' ) then
+        pllLocked <= '0';
+      end if;
+    end if;
+  end process P_LOCKDET;
+
+  pllFInc                   <= txBufStatus(0);
+
+  pippmStepSize(3 downto 0) <= "0001";
+  pippmStepSize(4)          <= fmod(fmod'left);
+  pippmEn                   <= not piVcoRst;
+
+  end block B_PLL;
+
 end architecture structure;

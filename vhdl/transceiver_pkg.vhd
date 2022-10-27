@@ -35,6 +35,7 @@ package transceiver_pkg is
       txbufstatus           : std_logic_vector( 1 downto 0);
       txoutclk              : std_logic;
       txdlyadjen            : std_logic;
+      txresetdone           : std_logic;
    end record transceiver_ob_type;
 
    -- bundle signals that go into the transceiver module

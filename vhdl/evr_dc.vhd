@@ -342,18 +342,23 @@ begin
     constant C_BEACON_PERIOD : natural := 32;
   begin
     if ( rising_edge( tst_tx_splice.txusrclk ) ) then
-      tst_tx_data_sync         <= tst_tx_data_sync + 1;
       tst_tx_data              <= event_txd & x"00";
       tst_tx_charisk           <= (others => '0');
-      if ( tst_tx_beacon_cnt = C_BEACON_PERIOD - 1 ) then
-        tst_tx_beacon_cnt        <= (others => '0');
-        tst_tx_data(15 downto 8) <= C_EVENT_BEACON;
-      else
-        tst_tx_beacon_cnt        <= tst_tx_beacon_cnt + 1;
-        if ( tst_tx_data_sync = 0 ) then
-           tst_tx_data(15 downto 8) <= X"BC"; -- K28.5
-           tst_tx_charisk(1)        <= '1';
+      if ( mgtIb.txresetdone = '1' ) then
+        tst_tx_data_sync         <= tst_tx_data_sync + 1;
+        if ( tst_tx_beacon_cnt = C_BEACON_PERIOD - 1 ) then
+          tst_tx_beacon_cnt        <= (others => '0');
+          tst_tx_data(15 downto 8) <= C_EVENT_BEACON;
+        else
+          tst_tx_beacon_cnt        <= tst_tx_beacon_cnt + 1;
+          if ( tst_tx_data_sync = 0 ) then
+             tst_tx_data(15 downto 8) <= X"BC"; -- K28.5
+             tst_tx_charisk(1)        <= '1';
+          end if;
         end if;
+      else
+        tst_tx_data_sync         <= (others => '0');
+        tst_tx_beacon_cnt        <= (others => '0');
       end if;
     end if;
   end process P_TST_TX;

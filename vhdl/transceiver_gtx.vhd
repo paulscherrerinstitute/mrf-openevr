@@ -693,7 +693,7 @@ architecture structure of transceiver_dc_gt is
         ------------- Transmit Ports - TX Initialization and Reset Ports -----------
         TXPCSRESET                      =>      TXPCSRESET_in,
         TXPMARESET                      =>      TXPMARESET_in,
-        TXRESETDONE                     =>      TXRESETDONE_out,
+        TXRESETDONE                     =>      ob.txresetdone,
         ------------------ Transmit Ports - TX OOB signalling Ports ----------------
         TXCOMFINISH                     =>      open,
         TXCOMINIT                       =>      gnd,

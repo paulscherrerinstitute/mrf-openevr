@@ -392,6 +392,7 @@ begin
     v(0) := v(0) or PL_LED2;
     v(1) := v(1) or PL_LED3;
     v(2) := v(2) or PL_LED4;
+    v(4 downto 3) := mgtOb.txbufstatus;
     led <= v;
   end process P_LED;
 
