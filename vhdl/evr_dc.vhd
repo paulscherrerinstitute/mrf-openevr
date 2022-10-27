@@ -338,10 +338,10 @@ begin
     end if;
   end process P_SPLICE;
 
-  P_TST_TX : process (mgtIb.txusrclk) is
+  P_TST_TX : process (tst_tx_splice.txusrclk) is
     constant C_BEACON_PERIOD : natural := 32;
   begin
-    if ( rising_edge( mgtIb.txusrclk ) ) then
+    if ( rising_edge( tst_tx_splice.txusrclk ) ) then
       tst_tx_data_sync         <= tst_tx_data_sync + 1;
       tst_tx_data              <= event_txd & x"00";
       tst_tx_charisk           <= (others => '0');

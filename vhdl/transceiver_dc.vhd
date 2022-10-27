@@ -285,7 +285,8 @@ begin
   mgtOb.txdata     <= tx_data;
   mgtOb.txcharisk  <= tx_charisk;
   tx_bufstatus     <= mgtIb.txbufstatus;
-  tx_usrclk        <= mgtIb.txusrclk;
+  tx_usrclk        <= mgtIb.txoutclk;
+  mgtOb.txusrclk   <= tx_usrclk;
 
   recclk_out       <= rx_recclk;
   refclk_out       <= tx_usrclk;

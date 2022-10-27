@@ -16,7 +16,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 
+library unisim;
+use     unisim.vcomponents.all;
+
 use     work.transceiver_pkg.all;
+use     work.GtpCommonPkg.all;
 
 entity transceiver_dc_gt is
   generic
@@ -47,13 +51,15 @@ end entity transceiver_dc_gt;
 
 architecture structure of transceiver_dc_gt is
 
-  signal rxRecClk_i: std_logic;
-  signal txUsrClk_i: std_logic;
+  signal rxRecClk_i     : std_logic;
+  signal rxRecClk_nb    : std_logic;
+  signal txUsrClk_i     : std_logic;
+  signal txOutClk_nb    : std_logic;
 
-  attribute ASYNC_REG : string;
+  attribute ASYNC_REG   : string;
 
-  signal synRstDone : std_logic_vector(1 downto 0) := (others => '0');
-  attribute ASYNC_REG of synRstDone : signal is "TRUE";
+  signal synRstDone     : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of synRstDone      : signal is "TRUE";
 
   signal rxRstDone      : std_logic;
 
@@ -62,6 +68,9 @@ architecture structure of transceiver_dc_gt is
 
   signal txRst_i        : std_logic;
   signal rxRst_i        : std_logic;
+
+  signal pllIb          : GtpCommonIbArray( 1 downto 0);
+  signal pllOb          : GtpCommonObArray( 1 downto 0);
   
 begin
 
@@ -88,7 +97,6 @@ begin
  -- rxCommaAlignEn <= '0';
 
   -- not routed out by wizard when common block is in the core
-  ob.drpbsy       <= '0';
   -- wizard internally uses sys_clk
   ob.drpclk       <= sys_clk;
 
@@ -102,27 +110,46 @@ begin
   ob.rxresetdone  <= synRstDone(synRstDone'left);
   ob.rxrecclk     <= rxRecClk_i;
 
-  ob.txusrclk  <= txUsrClk_i;
+  U_TXOUTCLK_BUF : BUFG
+    port map (
+      I => txOutClk_nb,
+      O => ob.txoutclk
+    );
+
+  U_RXOUTCLK_BUF : BUFG
+    port map (
+      I => rxRecClk_nb,
+      O => rxRecClk_i
+    );
+
 
   rxRst_i         <= ib.gtrxreset or ib.mgtreset;
   txRst_i         <= ib.gttxreset or ib.mgtreset;
 
+  txUsrClk_i      <= ib.txusrclk;
+
+  -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  -- NOTE: we MUST let the wizard create the GTP *without* the common block
+  --       - no control over txoutclk/txusrclk, i.e., they can't be different
+  --       - I found that the wizard sets TXPIPPMSTEPSIZE to "000" when
+  --         the common block is included; a setting with according to the
+  --         UG is illegal. When the common block is excluded then vivado
+  --         (2021.2) produces a TXPIPPMSTEPSIZE = "001". Unfortunately the
+  --         generic is not propagated to the outside world :-(.
+
   i_mgt : entity work.transceiver_wiz_gtp_txbuf
     port map (
+      SYSCLK_IN => sys_clk, -- in STD_LOGIC
       SOFT_RESET_TX_IN => txRst_i, -- in STD_LOGIC;
       SOFT_RESET_RX_IN => rxRst_i, -- in STD_LOGIC;
       DONT_RESET_ON_DATA_ERROR_IN => '0', -- in STD_LOGIC;
-      Q0_CLK0_GTREFCLK_PAD_N_IN => refClkN, -- in STD_LOGIC;
-      Q0_CLK0_GTREFCLK_PAD_P_IN => refClkP, -- in STD_LOGIC;
+      GT0_DRP_BUSY_OUT => ob.drpbsy, -- out STD_LOGIC;
       GT0_TX_FSM_RESET_DONE_OUT => open,    -- out STD_LOGIC;
       GT0_RX_FSM_RESET_DONE_OUT => rxRstDone, -- out STD_LOGIC;
       -- monitored by the rx startup FSM; purpose not clear, in particular
       -- how it differs from rxUsrRdy
       GT0_DATA_VALID_IN => '1', -- in STD_LOGIC;
-      GT0_TXUSRCLK_OUT => open, -- out STD_LOGIC;
-      GT0_TXUSRCLK2_OUT => txUsrClk_i, -- out STD_LOGIC;
-      GT0_RXUSRCLK_OUT => open, -- out STD_LOGIC;
-      GT0_RXUSRCLK2_OUT => rxRecClk_i, -- out STD_LOGIC;
+      gt0_drpclk_in => sys_clk,
       gt0_drpaddr_in => ib.drpaddr, -- in STD_LOGIC_VECTOR ( 8 downto 0 );
       gt0_drpdi_in => ib.drpdi, -- in STD_LOGIC_VECTOR ( 15 downto 0 );
       gt0_drpdo_out => ob.drpdo, -- out STD_LOGIC_VECTOR ( 15 downto 0 );
@@ -134,6 +161,8 @@ begin
       gt0_eyescandataerror_out => open, -- out STD_LOGIC;
       gt0_eyescantrigger_in => '0', -- in STD_LOGIC;
       gt0_rxdata_out => ob.rxdata, -- out STD_LOGIC_VECTOR ( 15 downto 0 );
+      gt0_rxusrclk_in => rxRecClk_i, -- in STD_LOGIC;
+      gt0_rxusrclk2_in => rxRecClk_i, -- in STD_LOGIC;
       gt0_rxcharisk_out => ob.rxcharisk, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_rxdisperr_out => ob.rxdisperr, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_rxnotintable_out => ob.rxnotintable, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
@@ -146,6 +175,7 @@ begin
       gt0_dmonitorout_out => open, -- out STD_LOGIC_VECTOR ( 14 downto 0 );
       gt0_rxlpmhfhold_in => '0', -- in STD_LOGIC;
       gt0_rxlpmlfhold_in => '0', -- in STD_LOGIC;
+      gt0_rxoutclk_out          => rxRecClk_nb, -- out STD_LOGIC;
       gt0_rxoutclkfabric_out => open, -- out STD_LOGIC;
       gt0_gtrxreset_in => '0', -- in STD_LOGIC;
       gt0_rxlpmreset_in => '0', -- in STD_LOGIC;
@@ -153,22 +183,53 @@ begin
       gt0_rxresetdone_out => open, -- out STD_LOGIC;
       gt0_gttxreset_in => '0', -- in STD_LOGIC;
       gt0_txuserrdy_in => ib.txusrrdy, -- in STD_LOGIC;
+      gt0_txpippmen_in => ib.txpippmen, -- in STD_LOGIC;
+      gt0_txpippmstepsize_in => ib.txpippmstepsize, -- in STD_LOGIC_VECTOR ( 4 downto 0 );
       gt0_txdata_in => ib.txdata, -- in STD_LOGIC_VECTOR ( 15 downto 0 );
+      gt0_txusrclk_in  => txUsrClk_i, -- in STD_LOGIC;
+      gt0_txusrclk2_in  => txUsrClk_i, -- in STD_LOGIC;
       gt0_txcharisk_in => ib.txcharisk, -- in STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_txbufstatus_out => ob.txbufstatus, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_gtptxn_out => txn, -- out STD_LOGIC;
       gt0_gtptxp_out => txp, -- out STD_LOGIC;
+      gt0_txoutclk_out => txOutClk_nb, -- out STD_LOGIC;
       gt0_txoutclkfabric_out => open, -- out STD_LOGIC;
       gt0_txoutclkpcs_out => open, -- out STD_LOGIC;
       gt0_txresetdone_out => open, -- out STD_LOGIC;
       gt0_txpolarity_in => TX_POLARITY, -- in STD_LOGIC;
-      GT0_PLL0RESET_OUT => open, -- out STD_LOGIC;
-      GT0_PLL0OUTCLK_OUT => open, -- out STD_LOGIC;
-      GT0_PLL0OUTREFCLK_OUT => open, -- out STD_LOGIC;
-      GT0_PLL0LOCK_OUT => ob.cpll_locked, -- out STD_LOGIC;
-      GT0_PLL0REFCLKLOST_OUT => open, -- out STD_LOGIC;
-      GT0_PLL1OUTCLK_OUT => open, -- out STD_LOGIC;
-      GT0_PLL1OUTREFCLK_OUT => open, -- out STD_LOGIC;
-      sysclk_in => sys_clk -- in STD_LOGIC
+      GT0_PLL0OUTCLK_IN  => pllOb(0).pllOutClk, -- in  STD_LOGIC;
+      GT0_PLL0OUTREFCLK_IN => pllOb(0).pllOutRefClk, -- in STD_LOGIC;
+      GT0_PLL0RESET_OUT => pllIb(0).pllReset, -- out STD_LOGIC;
+      GT0_PLL0LOCK_IN => pllOb(0).pllLock, -- in STD_LOGIC;
+      GT0_PLL0REFCLKLOST_IN => pllOb(0).pllRefClkLost, -- in STD_LOGIC;
+      GT0_PLL1OUTCLK_IN => pllOb(1).pllOutClk, -- in STD_LOGIC;
+      GT0_PLL1OUTREFCLK_IN => pllOb(1).pllOutRefClk -- in STD_LOGIC;
       );
+
+   -- watch out for how the wizard sets TXOUT_DIV/RXOUT_DIV !!
+   -- (see comment in GtpCommon)
+   U_COMMON : entity work.GtpCommon
+      generic map (
+         PLL0_FBDIV_IN    => 4,
+         PLL0_FBDIV_45_IN => 5
+      )
+      port map (
+         DRPCLK_COMMON_IN => sys_clk,
+         pllIb            => pllIb,
+         pllOb            => pllOb,
+         GTREFCLK_P_IN(0) => REFCLK0P,
+         GTREFCLK_P_IN(1) => REFCLK1P,
+         GTREFCLK_N_IN(0) => REFCLK0N,
+         GTREFCLK_N_IN(1) => REFCLK1N
+      );
+
+   pllIb(1)       <= GTP_COMMON_IB_INIT_C;
+
+   pllIb(0).pllPD <= '0';
+
+   pllIb(0).pllRefClkSel(2) <= '0';
+   pllIb(0).pllRefClkSel(1) <=     REFCLKSEL;
+   pllIb(0).pllRefClkSel(0) <= not REFCLKSEL;
+
+  ob.cpll_locked <= pllOb(0).pllLock; 
 end architecture structure;

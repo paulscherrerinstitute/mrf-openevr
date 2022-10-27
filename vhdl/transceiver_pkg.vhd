@@ -33,7 +33,7 @@ package transceiver_pkg is
       rxrecclk              : std_logic;
 
       txbufstatus           : std_logic_vector( 1 downto 0);
-      txusrclk              : std_logic;
+      txoutclk              : std_logic;
       txdlyadjen            : std_logic;
    end record transceiver_ob_type;
 
@@ -50,11 +50,15 @@ package transceiver_pkg is
       gtrxreset             : std_logic;
       rxusrrdy              : std_logic;
       rxcommaalignen        : std_logic;
+      txpippmen             : std_logic;
+      txpippmstepsize       : std_logic_vector(4 downto 0);
 
+      txusrclk              : std_logic;
       gttxreset             : std_logic;
       txusrrdy              : std_logic;
       txdata                : std_logic_vector(15 downto 0);
       txcharisk             : std_logic_vector( 1 downto 0);
    end record transceiver_ib_type;
+
 end package transceiver_pkg;
 

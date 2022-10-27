@@ -101,7 +101,7 @@ architecture structure of transceiver_dc_gt is
   signal RXPMARESET_in : std_logic;
   signal RXEQMIX       : std_logic_vector(1 downto 0);
 
-  signal txusrclk_i    : std_logic;
+  signal txoutclk_i    : std_logic;
   signal txoutclk      : std_logic;
   signal rxusrclk      : std_logic;
   
@@ -777,10 +777,10 @@ architecture structure of transceiver_dc_gt is
 
   i_bufg1: BUFG
     port map (
-      O => txusrclk_i,
+      O => txoutclk_i,
       I => txoutclk);
       
   ob.rxrecclk <= rxusrclk;
-  ob.txusrclk <= txusrclk_i;
+  ob.txoutclk <= txoutclk_i;
   
 end architecture structure;
