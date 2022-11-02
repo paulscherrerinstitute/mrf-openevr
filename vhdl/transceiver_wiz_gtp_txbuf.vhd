@@ -8,7 +8,7 @@
 --                Micro-Research Finland Oy
 --                <jukka.pietarinen@mrf.fi>
 --
---  		
+--
 --
 ---------------------------------------------------------------------------
 
@@ -56,6 +56,7 @@ architecture structure of transceiver_dc_gt is
   signal rxRecClk_nb    : std_logic;
   signal txUsrClk_i     : std_logic;
   signal txOutClk_nb    : std_logic;
+  signal txOutClk       : std_logic;
   signal txRefClk_nb    : std_logic_vector(1 downto 0);
   signal txRefClk       : std_logic;
   signal txBufStatus    : std_logic_vector(1 downto 0);
@@ -88,7 +89,14 @@ architecture structure of transceiver_dc_gt is
   signal pippmStepSize   : std_logic_vector(4 downto 0) := (others => '0');
   signal pippmEn         : std_logic := '0';
 
- 
+  constant GEN_PLL_C     : boolean := true;
+
+  signal usrInp          : std_logic_vector(ib.usrInp'range) := (others => '0');
+  signal usrOut          : std_logic_vector(ob.usrOut'range) := (others => '0');
+  signal usrOut_i        : std_logic_vector(ob.usrOut'range) := (others => '0');
+  signal usrOutSync      : std_logic := '0';
+  signal usrInpSync      : std_logic := '0';
+
 begin
 
   G_REFCLK0 : if ( REFCLKSEL = '0' ) generate
@@ -119,7 +127,7 @@ begin
   ob.drpclk       <= sys_clk;
 
   -- !!!!!!!!!!!!!!!!!!!!!!!!!!!
-  -- tuning the delay does currently not work (necessary signals not 
+  -- tuning the delay does currently not work (necessary signals not
   -- routed out by wizard!)
   ob.txdlyadjen   <= '0';
 
@@ -132,10 +140,16 @@ begin
 
   U_TXOUTCLK_BUF : BUFG
     port map (
+      I => txOutClk_nb,
+      O => txOutClk
+    );
+
+  U_TXREFCLK_BUF : BUFG
+    port map (
       I => txRefClk_nb( toInt( REFCLKSEL ) ),
---      I => txOutClk_nb,
       O => ob.txoutclk
     );
+
 
   U_RXOUTCLK_BUF : BUFG
     port map (
@@ -253,9 +267,9 @@ begin
    pllIb(0).pllRefClkSel(1) <=     REFCLKSEL;
    pllIb(0).pllRefClkSel(0) <= not REFCLKSEL;
 
-   ob.cpll_locked <= pllOb(0).pllLock; 
+   ob.cpll_locked <= pllOb(0).pllLock;
 
-  B_PLL : block is
+  G_PLL : if ( GEN_PLL_C ) generate
     signal filterCnt         : unsigned(19 downto 0) := (others => '1');
     signal freq              : signed(15 downto 0) := (others => '0');
     signal freqm             : signed(15 downto 0) := (others => '0');
@@ -305,6 +319,16 @@ begin
       freqm   => freqm
     );
 
+  pstep <= resize(signed  (usrInp( 3 downto  0)), pstep'length);
+  istep <= resize(signed  (usrInp( 7 downto  4)), istep'length);
+  ishft <= resize(unsigned(usrInp(11 downto  8)), ishft'length);
+  mshft <= resize(unsigned(usrInp(15 downto 12)), mshft'length);
+  decm  <= resize(unsigned(usrInp(23 downto 16)), decm'length );
+
+  usrOut_i(15 downto  0)            <= std_logic_vector( freqm );
+  usrOut_i(31 downto 16)            <= std_logic_vector( freq  );
+  usrOut_i(usrOut_i'left downto 32) <= (others => '0');
+
   -- for now - just wait...
   P_LOCKDET : process ( txUsrClk_i ) is
     variable l : std_logic;
@@ -337,6 +361,55 @@ begin
   pippmStepSize(4)          <= fmod(fmod'left);
   pippmEn                   <= not piVcoRst;
 
-  end block B_PLL;
+  end generate G_PLL;
+
+  G_NO_PLL : if ( not GEN_PLL_C ) generate
+    pippmStepSize <= ib.txpippmstepsize;
+    pippmEn       <= ib.txpippmen;
+  end generate;
+
+  B_SYNC : block is
+    signal t2s_i : std_logic_vector(2 downto 0) := (others => '0');
+    signal s2t_i : std_logic_vector(2 downto 0) := (others => '0');
+    signal t2s_o : std_logic_vector(2 downto 0) := (others => '0');
+    signal s2t_o : std_logic_vector(2 downto 0) := (others => '0');
+
+    attribute ASYNC_REG of t2s_i : signal is "TRUE";
+    attribute ASYNC_REG of s2t_i : signal is "TRUE";
+    attribute ASYNC_REG of t2s_o : signal is "TRUE";
+    attribute ASYNC_REG of s2t_o : signal is "TRUE";
+
+  begin
+
+    process ( txUsrClk_i ) is
+    begin
+      if ( rising_edge( txUsrClk_i ) ) then
+         s2t_i      <= ib.usrInpSync & s2t_i(s2t_i'left downto 1);
+         s2t_o      <= ib.usrOutAck  & s2t_o(s2t_o'left downto 1);
+
+         usrInpSync <= s2t_i(0);
+         if ( usrInpSync /= s2t_i(0) ) then
+            usrInp <= ib.usrInp;
+         end if;
+         if ( usrOutSync = s2t_o(0) ) then
+            usrOut     <= usrOut_i;
+            usrOutSync <= not s2t_o(0);
+         end if;
+      end if;
+    end process;
+
+    process is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+         t2s_i <= s2t_i(0)   & t2s_i(t2s_i'left downto 1);
+         t2s_o <= usrOutSync & t2s_o(t2s_o'left downto 1);
+      end if;
+    end process;
+
+    ob.usrInpAck  <= t2s_i(0);
+    ob.usrOutSync <= t2s_o(0);
+    ob.usrOut     <= usrOut;
+
+  end block B_SYNC;
 
 end architecture structure;

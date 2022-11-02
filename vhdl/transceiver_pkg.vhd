@@ -36,6 +36,9 @@ package transceiver_pkg is
       txoutclk              : std_logic;
       txdlyadjen            : std_logic;
       txresetdone           : std_logic;
+      usrOut                : std_logic_vector(63 downto 0);
+      usrOutSync            : std_logic;
+      usrInpAck             : std_logic;
    end record transceiver_ob_type;
 
    -- bundle signals that go into the transceiver module
@@ -59,6 +62,9 @@ package transceiver_pkg is
       txusrrdy              : std_logic;
       txdata                : std_logic_vector(15 downto 0);
       txcharisk             : std_logic_vector( 1 downto 0);
+      usrInp                : std_logic_vector(63 downto 0);
+      usrInpSync            : std_logic;
+      usrOutAck             : std_logic;
    end record transceiver_ib_type;
 
 end package transceiver_pkg;

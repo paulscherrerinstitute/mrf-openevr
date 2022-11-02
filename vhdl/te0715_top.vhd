@@ -61,11 +61,11 @@ architecture structure of zynq_top is
     databuf_rx_mode : in std_logic;  -- Databuf receive mode, '1' enabled, '0'
 				     -- disabled (only for non-DC)
     dc_mode         : in std_logic;  -- Delay compensation mode enable
-      
+
     rx_link_ok      : out   std_logic; -- Received link ok
     rx_violation    : out   std_logic; -- Receiver violation detected
     rx_clear_viol   : in    std_logic; -- Clear receiver violatio flag
-      
+
     -- Transmitter side connections
     event_txd       : in  std_logic_vector(7 downto 0); -- TX event code
     dbus_txd        : in  std_logic_vector(7 downto 0); -- TX distributed bus data
@@ -102,13 +102,13 @@ architecture structure of zynq_top is
       size_data_out     : out std_logic_vector(31 downto 0);
       addr_in           : in std_logic_vector(10 downto 2);
       clk               : in std_logic;
-      
+
       -- Data stream interface
       databuf_data      : in std_logic_vector(7 downto 0);
       databuf_k         : in std_logic;
       databuf_ena       : in std_logic;
       event_clk         : in std_logic;
-      
+
       delay_comp_update : out std_logic;
       delay_comp_rx     : out std_logic_vector(31 downto 0);
       delay_comp_status : out std_logic_vector(31 downto 0);
@@ -122,7 +122,7 @@ architecture structure of zynq_top is
       cs_flag           : out std_logic_vector(0 to 127);
       ov_flag           : out std_logic_vector(0 to 127);
       clear_flag        : in std_logic_vector(0 to 127);
-      
+
       reset             : in std_logic);
   end component;
 
@@ -140,7 +140,7 @@ architecture structure of zynq_top is
 
   signal gnd     : std_logic;
   signal vcc     : std_logic;
-  
+
   signal sys_reset : std_logic;
 
   signal refclk  : std_logic;
@@ -149,7 +149,7 @@ architecture structure of zynq_top is
   signal dc_mode         : std_logic;
 
   signal tx_reset : std_logic;
-  
+
   signal event_link_ok : std_logic;
 
   signal event_rxd       : std_logic_vector(7 downto 0);
@@ -158,7 +158,7 @@ architecture structure of zynq_top is
   signal databuf_rx_k    : std_logic;
   signal databuf_rx_ena  : std_logic;
   signal databuf_rx_mode : std_logic;
-    
+
   signal rx_link_ok      : std_logic;
   signal rx_violation    : std_logic;
   signal rx_clear_viol   : std_logic;
@@ -196,6 +196,8 @@ architecture structure of zynq_top is
 
   signal topology_addr       : std_logic_vector(31 downto 0);
 
+  signal usrInpTgl           : std_logic := '0';
+
   constant NUM_RW_REGS_C     : natural := 8;
   constant NUM_RO_REGS_C     : natural := 8;
 
@@ -208,21 +210,30 @@ architecture structure of zynq_top is
     others => (others => '0')
   );
 
-  signal roRegs : RegArray(0 to NUM_RO_REGS_C - 1) := ( others => (others => '0') );
+  signal rwRegsStrb  : std_logic_vector(0 to NUM_RW_REGS_C - 1) := (others => '0');
+  signal rwRegsWerr  : std_logic_vector(0 to NUM_RW_REGS_C - 1) := (others => '0');
+
+  signal roRegs      : RegArray(0 to NUM_RO_REGS_C - 1) := ( others => (others => '0') );
 
   signal PL_LED2, PL_LED3, PL_LED4 : std_logic;
 
-  signal mgtIb  : transceiver_ib_type;
-  signal mgtOb  : transceiver_ob_type;
+  signal mgtIb       : transceiver_ib_type;
+  signal mgtIbSplice : transceiver_ib_type;
+  signal mgtOb       : transceiver_ob_type;
 
   signal rxCommaAlignEn: std_logic;
-   
+
+  signal dbg0        : std_logic_vector(7 downto 0) := (others => '0');
+  signal dbg1        : std_logic_vector(7 downto 0) := (others => '0');
+  signal dbg2        : std_logic_vector(7 downto 0) := (others => '0');
+  signal dbg3        : std_logic_vector(7 downto 0) := (others => '0');
+
 begin
 
   assert NUM_RW_REGS_C <= MAX_RW_REGS_G severity failure;
   assert NUM_RO_REGS_C <= MAX_RO_REGS_G severity failure;
 
-  P_READ : process ( ridx, roRegs, widx, rwRegs ) is
+  P_READ : process ( ridx, roRegs, widx, rwRegs, rwRegsWerr ) is
   begin
     if    ( ridx < NUM_RO_REGS_C ) then
       rdata <= roRegs(ridx);
@@ -236,7 +247,7 @@ begin
     end if;
 
     if ( widx < NUM_RW_REGS_C ) then
-      werr <= '0';
+      werr <= '0' or rwRegsWerr(widx);
     else
       werr <= '1';
     end if;
@@ -245,9 +256,11 @@ begin
   P_WRITE : process ( sys_clk ) is
   begin
     if ( rising_edge( sys_clk ) ) then
+      rwRegsStrb <= (others => '0');
       if ( widx < NUM_RW_REGS_C ) then
         for i in 0 to 3 loop
           if ( wstrb(i) = '1' ) then
+             rwRegsStrb(widx)               <= '1';
              rwRegs(widx)(8*i+7 downto 8*i) <= wdata(8*i+7 downto 8*i);
           end if;
         end loop;
@@ -295,7 +308,7 @@ begin
       sys_clk => sys_clk,
       refclk_out => refclk,
       event_clk_out => event_clk,
-      
+
       -- Receiver side connections
       event_rxd => event_rxd,
       dbus_rxd => dbus_rxd,
@@ -304,11 +317,11 @@ begin
       databuf_rx_ena => databuf_rx_ena,
       databuf_rx_mode => databuf_rx_mode,
       dc_mode => dc_mode,
-      
+
       rx_link_ok => rx_link_ok,
       rx_violation => rx_violation,
       rx_clear_viol => rx_clear_viol,
-      
+
       -- Transmitter side connections
       event_txd => event_txd,
       dbus_txd => dbus_txd,
@@ -320,7 +333,7 @@ begin
       dc_slow_adjust => dc_slow_adjust,
       mode_mst => mode_mst,
       rx_commaalignen => rxCommaAlignEn,
- 
+
       reset => tx_reset,
 
       delay_comp_update => delay_comp_update,
@@ -332,7 +345,7 @@ begin
       int_delay_update_out => int_delay_update,
 
       mgtIb => mgtOb,
-      mgtOb => mgtIb
+      mgtOb => mgtIbSplice
       );
 
   i_databuf_dc : databuf_rx_dc
@@ -351,7 +364,7 @@ begin
       delay_comp_rx => delay_comp_value,
       delay_comp_status => delay_comp_rx_status,
       topology_addr => topology_addr,
-      
+
       irq_out => databuf_irq_dc,
 
       sirq_ena => databuf_sirq_ena,
@@ -385,7 +398,7 @@ begin
   databuf_txd       <= rwRegs(2)(15 downto 8);
   databuf_tx_k      <= rwRegs(2)(         16);
 
-  P_LED : process ( rwRegs(3), PL_LED2, PL_LED3, PL_LED4 ) is
+  P_LED : process ( rwRegs(3), PL_LED2, PL_LED3, PL_LED4, mgtOb ) is
     variable v : std_logic_vector(led'range);
   begin
     v := rwRegs(3)(led'range);
@@ -444,12 +457,15 @@ begin
   roRegs(0)(2) <= delay_comp_locked;
   roRegs(0)(3) <= delay_comp_update;
   roRegs(0)(7 downto 4) <= int_delay_updcnt;
+--  roRegs(1)    <= dbg3 & dbg2 & dbg1 & dbg0;
   roRegs(1)    <= delay_comp_value;
-  roRegs(2)    <= delay_comp_rx_status;
-  roRegs(3)    <= databuf_dc_data_out;
+--  roRegs(2)    <= delay_comp_rx_status;
+  roRegs(2)    <= x"0000000" &  "0" & rwRegsWerr(6) & mgtOb.txbufstatus;
+  roRegs(3)    <= mgtOb.usrOut(31 downto 0);
+--  roRegs(3)    <= databuf_dc_data_out;
   roRegs(4)    <= databuf_dc_size_out;
   roRegs(7)    <= int_delay_value;
- 
+
   process (event_clk)
   begin
     if rising_edge(event_clk) then
@@ -489,6 +505,110 @@ begin
       end if;
     end if;
   end process;
-    
-  
+
+  B_PI : block is
+    constant  STAGES_C     : natural   := 3;
+    attribute ASYNC_REG    : string;
+
+    signal tglSys2TxUsrInp : std_logic := '0';
+    signal tglSys2TxUsrReg : std_logic_vector(STAGES_C - 1 downto 0) := (others => '0');
+    signal tglTxUsr2SysInp : std_logic := '0';
+    signal tglTxUsr2SysReg : std_logic_vector(STAGES_C - 1 downto 0) := (others => '0');
+    signal pippmstepsize   : std_logic_vector(4 downto 0) := (others => '0');
+    signal state           : std_logic_vector(1 downto 0) := (others => '0');
+
+    signal count           : unsigned(16 downto 0)        := (others => '1');
+
+    signal dbg             : unsigned(2 downto 0)         := (others => '0');
+
+    attribute ASYNC_REG    of tglSys2TxUsrReg : signal is "TRUE";
+    attribute ASYNC_REG    of tglTxUsr2SysReg : signal is "TRUE";
+  begin
+
+    P_SYNC2TXUSR : process ( mgtIb.txusrclk ) is
+    begin
+      if ( rising_edge( mgtIb.txusrclk ) ) then
+        tglSys2TxUsrReg <= tglSys2TxUsrInp & tglSys2TxUsrReg(tglSys2TxUsrReg'left downto 1);
+      end if;
+    end process P_SYNC2TXUSR;
+
+    P_SYNC2SYS   : process ( sys_clk ) is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+        tglTxUsr2SysReg <= tglTxUsr2SysInp & tglTxUsr2SysReg(tglTxUsr2SysReg'left downto 1);
+      end if;
+    end process P_SYNC2SYS;
+
+    rwRegsWerr(6) <= (not count(count'left)) or (tglSys2TxUsrInp xor tglTxUsr2SysReg(0));
+
+    P_STEP   : process ( mgtIb.txusrclk ) is
+    begin
+      if ( rising_edge( mgtIb.txusrclk ) ) then
+         if ( ( state = "00" ) and ( tglSys2TxUsrReg(0) /= tglTxUsr2SysInp ) ) then
+            pippmstepsize <= rwRegs(6)(4 downto 0);
+            state         <= "11";
+         else
+            state         <= '0' & state(state'left downto 1);
+            if ( state = "01" ) then
+              pippmstepsize   <= (others => '0');
+              tglTxUsr2SysInp <= tglSys2TxUsrReg(0);
+            end if;
+         end if;
+      end if;
+    end process P_STEP;
+
+    P_PROCESS : process ( sys_clk ) is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+        if ( tglSys2TxUsrInp = tglTxUsr2SysReg(0) ) then
+          if ( count(count'left) = '1' ) then
+            -- ready for new cmd
+            if ( rwRegsStrb(6) = '1' ) then
+              count           <= unsigned( '0' & rwRegs(6)(31 downto 16) );
+            end if;
+          else
+            tglSys2TxUsrInp <= not tglSys2TxUsrInp;
+            count           <= count - 1;
+          end if;
+        end if;
+      end if;
+    end process P_PROCESS;
+
+    P_SPLICE : process ( mgtIbSplice, pippmstepsize, rwRegs, mgtOb, usrInpTgl ) is
+    begin
+      mgtIb                     <= mgtIbSplice;
+      mgtIb.txpippmen           <= '1';
+      mgtIb.txpippmstepsize     <= pippmstepsize;
+      mgtIb.usrInp              <= (others => '0');
+      mgtIb.usrInp(31 downto 0) <= rwRegs(7);
+      mgtIb.usrInpSync          <= usrInpTgl;
+      mgtIb.usrOutAck           <= mgtOb.usrOutSync;
+    end process P_SPLICE;
+
+    rwRegsWerr(7) <= (usrInpTgl xor mgtOb.usrInpAck);
+
+    process ( sys_clk ) is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+        if ( widx = 7 and wstrb /= "0000" and usrInpTgl = mgtOb.usrInpAck ) then
+           usrInpTgl <= not usrInpTgl;
+        end if;
+      end if;
+    end process;
+
+    P_DBG   : process ( sys_clk ) is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+         if ( (widx = 6 and wstrb /= "0000") or dbg /= 0 ) then
+            dbg3 <= dbg3(6 downto 0) & (wstrb(3) or wstrb(2) or wstrb(1) or wstrb(0));
+            dbg2 <= dbg2(6 downto 0) & rwRegsWerr(6);
+            dbg1 <= dbg1(6 downto 0) & rwRegsStrb(6);
+            dbg0 <= dbg0(6 downto 0) & count(count'left);
+            dbg  <= dbg - 1;
+         end if;
+      end if;
+    end process P_DBG;
+
+  end block B_PI;
+
 end structure;
