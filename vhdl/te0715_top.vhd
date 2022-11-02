@@ -208,7 +208,7 @@ architecture structure of zynq_top is
     0 => x"0000_0000",
     1 => X"0210_0000",
     2 => X"0100_0000",
-   15 => X"0003_7311", -- default pll parameters
+    7 => X"0003_7311", -- default pll parameters
     others => (others => '0')
   );
 
