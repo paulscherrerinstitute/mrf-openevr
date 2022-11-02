@@ -276,7 +276,7 @@ begin
     signal freqmax           : signed(15 downto 0) := to_signed( 5120, 16);
     signal fmod              : signed(15 downto 0) := (others => '0');
 
-    signal decm              : unsigned(15 downto 0) := to_unsigned( 4, 16);
+    signal decm              : unsigned(15 downto 0) := to_unsigned( 4-1, 16);
     signal pstep             : signed  (15 downto 0) := to_signed  ( 2, 16);
     signal istep             : signed  (15 downto 0) := to_signed  ( 1, 16);
     signal ishft             : unsigned(15 downto 0) := to_unsigned( 3, 16);

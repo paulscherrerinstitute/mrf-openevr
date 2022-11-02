@@ -197,6 +197,7 @@ architecture structure of zynq_top is
   signal topology_addr       : std_logic_vector(31 downto 0);
 
   signal usrInpTgl           : std_logic := '0';
+  signal usrInp              : std_logic_vector(31 downto 0) := (others => '0');
 
   constant NUM_RW_REGS_C     : natural := 8;
   constant NUM_RO_REGS_C     : natural := 8;
@@ -207,6 +208,7 @@ architecture structure of zynq_top is
     0 => x"0000_0000",
     1 => X"0210_0000",
     2 => X"0100_0000",
+   15 => X"0003_7311", -- default pll parameters
     others => (others => '0')
   );
 
@@ -574,24 +576,23 @@ begin
       end if;
     end process P_PROCESS;
 
-    P_SPLICE : process ( mgtIbSplice, pippmstepsize, rwRegs, mgtOb, usrInpTgl ) is
+    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb, usrInpTgl, usrInp ) is
     begin
       mgtIb                     <= mgtIbSplice;
       mgtIb.txpippmen           <= '1';
       mgtIb.txpippmstepsize     <= pippmstepsize;
       mgtIb.usrInp              <= (others => '0');
-      mgtIb.usrInp(31 downto 0) <= rwRegs(7);
+      mgtIb.usrInp(31 downto 0) <= usrInp;
       mgtIb.usrInpSync          <= usrInpTgl;
       mgtIb.usrOutAck           <= mgtOb.usrOutSync;
     end process P_SPLICE;
 
-    rwRegsWerr(7) <= (usrInpTgl xor mgtOb.usrInpAck);
-
     process ( sys_clk ) is
     begin
       if ( rising_edge( sys_clk ) ) then
-        if ( widx = 7 and wstrb /= "0000" and usrInpTgl = mgtOb.usrInpAck ) then
+        if ( usrInpTgl = mgtOb.usrInpAck ) then
            usrInpTgl <= not usrInpTgl;
+           usrInp    <= rwRegs(7);
         end if;
       end if;
     end process;
