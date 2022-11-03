@@ -197,7 +197,7 @@ architecture structure of zynq_top is
   signal topology_addr       : std_logic_vector(31 downto 0);
 
   signal usrInpTgl           : std_logic := '0';
-  signal usrInp              : std_logic_vector(31 downto 0) := (others => '0');
+  signal usrInp              : std_logic_vector(63 downto 0) := (others => '0');
 
   constant NUM_RW_REGS_C     : natural := 8;
   constant NUM_RO_REGS_C     : natural := 8;
@@ -206,9 +206,9 @@ architecture structure of zynq_top is
 
   signal rwRegs : RegArray(0 to NUM_RW_REGS_C - 1) := (
     0 => x"0000_0000",
-    1 => X"0210_0000",
+    1 => X"0000_ffff", -- phase error averaging
     2 => X"0100_0000",
-    7 => X"0003_7311", -- default pll parameters
+    7 => X"0001_7312", -- default pll parameters
     others => (others => '0')
   );
 
@@ -394,7 +394,7 @@ begin
 
   ctl               <= rwRegs(0)(31 downto 24);
 
-  delay_comp_target <= rwRegs(1);
+--  delay_comp_target <= rwRegs(1);
 
   dbus_txd          <= rwRegs(2)( 7 downto 0);
   databuf_txd       <= rwRegs(2)(15 downto 8);
@@ -463,9 +463,10 @@ begin
   roRegs(1)    <= delay_comp_value;
 --  roRegs(2)    <= delay_comp_rx_status;
   roRegs(2)    <= x"0000000" &  "0" & rwRegsWerr(6) & mgtOb.txbufstatus;
-  roRegs(3)    <= mgtOb.usrOut(31 downto 0);
+  roRegs(3)    <= mgtOb.usrOut(31 downto  0);
+  roRegs(4)    <= mgtOb.usrOut(63 downto 32);
 --  roRegs(3)    <= databuf_dc_data_out;
-  roRegs(4)    <= databuf_dc_size_out;
+--  roRegs(4)    <= databuf_dc_size_out;
   roRegs(7)    <= int_delay_value;
 
   process (event_clk)
@@ -582,7 +583,7 @@ begin
       mgtIb.txpippmen           <= '1';
       mgtIb.txpippmstepsize     <= pippmstepsize;
       mgtIb.usrInp              <= (others => '0');
-      mgtIb.usrInp(31 downto 0) <= usrInp;
+      mgtIb.usrInp              <= usrInp;
       mgtIb.usrInpSync          <= usrInpTgl;
       mgtIb.usrOutAck           <= mgtOb.usrOutSync;
     end process P_SPLICE;
@@ -591,8 +592,9 @@ begin
     begin
       if ( rising_edge( sys_clk ) ) then
         if ( usrInpTgl = mgtOb.usrInpAck ) then
-           usrInpTgl <= not usrInpTgl;
-           usrInp    <= rwRegs(7);
+           usrInpTgl            <= not usrInpTgl;
+           usrInp(31 downto  0) <= rwRegs(7);
+           usrInp(63 downto 32) <= rwRegs(1);
         end if;
       end if;
     end process;

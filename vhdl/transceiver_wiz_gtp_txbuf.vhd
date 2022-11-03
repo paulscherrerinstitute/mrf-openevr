@@ -284,6 +284,10 @@ begin
     signal piVcoRst          : std_logic := '1';
     signal pllFInc           : std_logic := '0';
     signal pllcen            : std_logic := '0';
+    signal phavg             : unsigned(15 downto 0) := (others => '0');
+    signal phavgrun          : unsigned(15 downto 0) := (others => '0');
+    signal phavgcnt          : unsigned(15 downto 0) := (others => '1');
+    signal phavgwin          : unsigned(15 downto 0) := (others => '1');
 
   begin
 
@@ -325,9 +329,31 @@ begin
   mshft <= resize(unsigned(usrInp(15 downto 12)), mshft'length);
   decm  <= resize(unsigned(usrInp(23 downto 16)), decm'length );
 
+  phavgwin <= unsigned(usrInp(47 downto 32));
+
   usrOut_i(15 downto  0)            <= std_logic_vector( freqm );
   usrOut_i(31 downto 16)            <= std_logic_vector( freq  );
-  usrOut_i(usrOut_i'left downto 32) <= (others => '0');
+  usrOut_i(47 downto 32)            <= std_logic_vector( phavg );
+  usrOut_i(usrOut_i'left downto 48) <= (others => '0');
+
+  P_PHASAVG : process ( txUsrClk_i ) is
+    variable v : unsigned(phavgcnt'range);
+  begin
+    if ( rising_edge( txUsrClk_i ) ) then
+       if ( phavgcnt = 0 ) then
+          phavg    <= phavgrun;
+          v        := (others => '0');
+          phavgcnt <= phavgwin;
+       else
+          v        := phavgrun;
+          phavgcnt <= phavgcnt - 1;
+       end if;
+       if ( txBufStatus(0) = '1' ) then
+          v        := v + 1;
+       end if;
+       phavgrun <= v;
+    end if;
+  end process P_PHASAVG;
 
   -- for now - just wait...
   P_LOCKDET : process ( txUsrClk_i ) is
