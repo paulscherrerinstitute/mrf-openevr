@@ -401,6 +401,8 @@ begin
       pippmStepSize(4)          <= fmod(fmod'left);
       pippmEn                   <= not piVcoRst;
     end if;
+  end process P_PLL_EXT;
+  
   end generate G_PLL;
 
   G_NO_PLL : if ( not GEN_PLL_C ) generate
