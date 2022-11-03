@@ -93,9 +93,6 @@ architecture structure of transceiver_dc_gt is
 
   signal usrInp          : std_logic_vector(ib.usrInp'range) := (others => '0');
   signal usrOut          : std_logic_vector(ob.usrOut'range) := (others => '0');
-  signal usrOut_i        : std_logic_vector(ob.usrOut'range) := (others => '0');
-  signal usrOutSync      : std_logic := '0';
-  signal usrInpSync      : std_logic := '0';
 
 begin
 
@@ -339,10 +336,10 @@ begin
 
   phavgwin <= unsigned(usrInp(47 downto 32));
 
-  usrOut_i(15 downto  0)            <= std_logic_vector( freqm );
-  usrOut_i(31 downto 16)            <= std_logic_vector( freq  );
-  usrOut_i(47 downto 32)            <= std_logic_vector( phavg );
-  usrOut_i(usrOut_i'left downto 48) <= (others => '0');
+  usrOut(15 downto  0)            <= std_logic_vector( freqm );
+  usrOut(31 downto 16)            <= std_logic_vector( freq  );
+  usrOut(47 downto 32)            <= std_logic_vector( phavg );
+  usrOut(usrOut'left downto 48)   <= (others => '0');
 
   P_PHASAVG : process ( txUsrClk_i ) is
     variable v : unsigned(phavgcnt'range);
@@ -410,48 +407,7 @@ begin
     pippmEn       <= ib.txpippmen;
   end generate;
 
-  B_SYNC : block is
-    signal t2s_i : std_logic_vector(2 downto 0) := (others => '0');
-    signal s2t_i : std_logic_vector(2 downto 0) := (others => '0');
-    signal t2s_o : std_logic_vector(2 downto 0) := (others => '0');
-    signal s2t_o : std_logic_vector(2 downto 0) := (others => '0');
-
-    attribute ASYNC_REG of t2s_i : signal is "TRUE";
-    attribute ASYNC_REG of s2t_i : signal is "TRUE";
-    attribute ASYNC_REG of t2s_o : signal is "TRUE";
-    attribute ASYNC_REG of s2t_o : signal is "TRUE";
-
-  begin
-
-    process ( txUsrClk_i ) is
-    begin
-      if ( rising_edge( txUsrClk_i ) ) then
-         s2t_i      <= ib.usrInpSync & s2t_i(s2t_i'left downto 1);
-         s2t_o      <= ib.usrOutAck  & s2t_o(s2t_o'left downto 1);
-
-         usrInpSync <= s2t_i(0);
-         if ( usrInpSync /= s2t_i(0) ) then
-            usrInp <= ib.usrInp;
-         end if;
-         if ( usrOutSync = s2t_o(0) ) then
-            usrOut     <= usrOut_i;
-            usrOutSync <= not s2t_o(0);
-         end if;
-      end if;
-    end process;
-
-    process is
-    begin
-      if ( rising_edge( sys_clk ) ) then
-         t2s_i <= s2t_i(0)   & t2s_i(t2s_i'left downto 1);
-         t2s_o <= usrOutSync & t2s_o(t2s_o'left downto 1);
-      end if;
-    end process;
-
-    ob.usrInpAck  <= t2s_i(0);
-    ob.usrOutSync <= t2s_o(0);
-    ob.usrOut     <= usrOut;
-
-  end block B_SYNC;
+  usrInp     <= ib.usrInp;
+  ob.usrOut  <= usrOut;
 
 end architecture structure;

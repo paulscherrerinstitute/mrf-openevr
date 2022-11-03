@@ -196,13 +196,14 @@ architecture structure of zynq_top is
 
   signal topology_addr       : std_logic_vector(31 downto 0);
 
-  signal usrInpTgl           : std_logic := '0';
   signal usrInp              : std_logic_vector(63 downto 0) := (others => '0');
+  signal usrOut              : std_logic_vector(63 downto 0) := (others => '0');
 
   constant NUM_RW_REGS_C     : natural := 8;
   constant NUM_RO_REGS_C     : natural := 8;
 
-  type RegArray is array ( natural range <> ) of std_logic_vector(31 downto 0);
+  type RegArray  is array ( natural range <> ) of std_logic_vector(31 downto 0);
+  type ByteArray is array ( natural range <> ) of std_logic_vector( 7 downto 0);
 
   signal rwRegs : RegArray(0 to NUM_RW_REGS_C - 1) := (
     0 => x"0000_0000",
@@ -229,6 +230,8 @@ architecture structure of zynq_top is
   signal dbg1        : std_logic_vector(7 downto 0) := (others => '0');
   signal dbg2        : std_logic_vector(7 downto 0) := (others => '0');
   signal dbg3        : std_logic_vector(7 downto 0) := (others => '0');
+
+  signal dbufDat     : ByteArray(2 to 17) := (others => (others => '0') );
 
 begin
 
@@ -397,8 +400,56 @@ begin
 --  delay_comp_target <= rwRegs(1);
 
   dbus_txd          <= rwRegs(2)( 7 downto 0);
-  databuf_txd       <= rwRegs(2)(15 downto 8);
-  databuf_tx_k      <= rwRegs(2)(         16);
+
+  -- data buffer starts at index 2..17
+  dbufDat(2) <= mgtOb.usrOut(39 downto 32);
+  dbufDat(3) <= mgtOb.usrOut(47 downto 40);
+  dbufDat(4) <= "000000" & mgtOb.txbufstatus(1 downto 0);
+
+  P_DATABUF_TX : process ( mgtIb.txusrclk ) is
+    variable bytcnt : natural := 0;
+    variable segmnt : std_logic_vector(7 downto 0) := x"00";
+    variable csum   : unsigned(15 downto 0);
+  begin
+
+    if ( rising_edge( mgtIb.txusrclk ) ) then
+      if ( databuf_tx_ena = '1' ) then
+
+         databuf_tx_k <= '0';
+
+         case bytcnt is
+            when 0 =>
+               databuf_txd  <= x"5C";
+               databuf_tx_k <= '1';
+            when 1 =>
+               databuf_txd  <= segmnt;
+               csum         := (others => '1');
+
+            when dbufDat'high + 1 =>
+               databuf_txd  <= x"3C";
+               databuf_tx_k <= '1';
+               csum         := csum - unsigned(databuf_txd);
+
+            when dbufDat'high + 2 =>
+               databuf_txd  <= std_logic_vector( csum(15 downto 8) );
+
+            when dbufDat'high + 3 =>
+               databuf_txd  <= std_logic_vector( csum( 7 downto 0) );
+
+            when others =>
+               csum         := csum - unsigned(databuf_txd);
+               databuf_txd  <= dbufDat( bytCnt );
+               databuf_tx_k <= '0';
+         end case;
+
+         if ( bytcnt > dbufDat'high + 2) then
+            bytcnt := 0;
+         else
+            bytcnt := bytcnt + 1;
+         end if;
+      end if;
+    end if;
+  end process P_DATABUF_TX;
 
   P_LED : process ( rwRegs(3), PL_LED2, PL_LED3, PL_LED4, mgtOb ) is
     variable v : std_logic_vector(led'range);
@@ -463,9 +514,8 @@ begin
   roRegs(1)    <= delay_comp_value;
 --  roRegs(2)    <= delay_comp_rx_status;
   roRegs(2)    <= x"0000000" &  "0" & rwRegsWerr(6) & mgtOb.txbufstatus;
-  roRegs(3)    <= mgtOb.usrOut(31 downto  0);
-  roRegs(4)    <= mgtOb.usrOut(63 downto 32);
---  roRegs(3)    <= databuf_dc_data_out;
+  roRegs(3)    <= databuf_dc_data_out;
+  roRegs(4)    <= usrOut(63 downto 32);
 --  roRegs(4)    <= databuf_dc_size_out;
   roRegs(7)    <= int_delay_value;
 
@@ -569,35 +619,23 @@ begin
             if ( rwRegsStrb(6) = '1' ) then
               count           <= unsigned( '0' & rwRegs(6)(31 downto 16) );
             end if;
-          else
             tglSys2TxUsrInp <= not tglSys2TxUsrInp;
+          else
             count           <= count - 1;
           end if;
         end if;
       end if;
     end process P_PROCESS;
 
-    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb, usrInpTgl, usrInp ) is
+    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb ) is
     begin
       mgtIb                     <= mgtIbSplice;
       mgtIb.txpippmen           <= '1';
       mgtIb.txpippmstepsize     <= pippmstepsize;
-      mgtIb.usrInp              <= (others => '0');
-      mgtIb.usrInp              <= usrInp;
-      mgtIb.usrInpSync          <= usrInpTgl;
-      mgtIb.usrOutAck           <= mgtOb.usrOutSync;
     end process P_SPLICE;
 
-    process ( sys_clk ) is
-    begin
-      if ( rising_edge( sys_clk ) ) then
-        if ( usrInpTgl = mgtOb.usrInpAck ) then
-           usrInpTgl            <= not usrInpTgl;
-           usrInp(31 downto  0) <= rwRegs(7);
-           usrInp(63 downto 32) <= rwRegs(1);
-        end if;
-      end if;
-    end process;
+    usrInp(31 downto  0) <= rwRegs(7);
+    usrInp(63 downto 32) <= rwRegs(1);
 
     P_DBG   : process ( sys_clk ) is
     begin
@@ -613,5 +651,34 @@ begin
     end process P_DBG;
 
   end block B_PI;
+
+  P_SYNC : block
+    signal reqA, ackA, reqB, ackB : std_logic;
+  begin
+    U_SYNC : entity work.mboxSynchronizer
+      generic map (
+         STAGES_G    => 3,
+         WIDTH_A2B_G => usrInp'length,
+         WIDTH_B2A_G => usrOut'length
+      )
+      port map (
+         clka        => sys_clk,
+         reqA        => reqA,
+         ackA        => ackA,
+         dinA        => usrInp,
+         douA        => usrOut,
+
+         clkb        => mgtIb.txusrclk,
+         reqB        => reqB,
+         ackB        => ackB,
+         dinB        => mgtOb.usrOut,
+         douB        => mgtIb.usrInp
+      );
+
+    -- ping-pong
+    reqA <= not ackA;
+    ackB <= reqB;
+
+  end block P_SYNC;
 
 end structure;
