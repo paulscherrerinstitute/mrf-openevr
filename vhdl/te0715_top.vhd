@@ -264,7 +264,7 @@ begin
       rwRegsStrb <= (others => '0');
       if ( widx < NUM_RW_REGS_C ) then
         for i in 0 to 3 loop
-          if ( wstrb(i) = '1' ) then
+          if ( ( wstrb(i) and not rwRegsWerr(widx) ) = '1' ) then
              rwRegsStrb(widx)               <= '1';
              rwRegs(widx)(8*i+7 downto 8*i) <= wdata(8*i+7 downto 8*i);
           end if;
@@ -619,9 +619,9 @@ begin
             if ( rwRegsStrb(6) = '1' ) then
               count           <= unsigned( '0' & rwRegs(6)(31 downto 16) );
             end if;
-            tglSys2TxUsrInp <= not tglSys2TxUsrInp;
           else
-            count           <= count - 1;
+            tglSys2TxUsrInp   <= not tglSys2TxUsrInp;
+            count             <= count - 1;
           end if;
         end if;
       end if;
