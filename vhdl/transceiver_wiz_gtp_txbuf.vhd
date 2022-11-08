@@ -291,7 +291,7 @@ begin
     signal phavgrun          : unsigned(15 downto 0) := (others => '0');
     signal phavgcnt          : unsigned(15 downto 0) := (others => '1');
     signal phavgwin          : unsigned(15 downto 0) := (others => '1');
-    signal plldi             : std_logic := '0';
+    signal plldi             : std_logic_vector(1 downto 0) := (others => '0');
 
   begin
 
@@ -332,7 +332,7 @@ begin
   ishft <= resize(unsigned(usrInp(11 downto  8)), ishft'length);
   mshft <= resize(unsigned(usrInp(15 downto 12)), mshft'length);
   decm  <= resize(unsigned(usrInp(23 downto 16)), decm'length );
-  plldi <= usrInp(31);
+  plldi <= usrInp(31 downto 30);
 
   phavgwin <= unsigned(usrInp(47 downto 32));
 
@@ -385,10 +385,13 @@ begin
 
   pllFInc                   <= txBufStatus(0);
 
-  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib ) is
+  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib, pllFInc ) is
   begin
-    if ( plldi = '1' ) then
+    if ( plldi(1) = '1' ) then
       pippmStepSize             <= ib.txpippmstepsize;
+      if ( plldi(0) = '1' ) then
+        pippmStepSize(4) <= not pllFInc;
+      end if;
       pippmEn                   <= ib.txpippmen;
     else
       pippmStepSize(3 downto 0) <= "0001";
