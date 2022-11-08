@@ -286,8 +286,10 @@ begin
     signal mshft             : unsigned(15 downto 0) := to_unsigned(15, 16);
     signal piVcoRst          : std_logic := '1';
     signal pllFInc           : std_logic := '0';
+    signal pllFInc_r         : std_logic := '0';
     signal pllcen            : std_logic := '0';
     signal phavg             : unsigned(15 downto 0) := (others => '0');
+    signal phavgiir          : unsigned(31 downto 0) := (others => '0');
     signal phavgrun          : unsigned(15 downto 0) := (others => '0');
     signal phavgcnt          : unsigned(15 downto 0) := (others => '1');
     signal phavgwin          : unsigned(15 downto 0) := (others => '1');
@@ -339,9 +341,10 @@ begin
   usrOut(15 downto  0)            <= std_logic_vector( freqm );
   usrOut(31 downto 16)            <= std_logic_vector( freq  );
   usrOut(47 downto 32)            <= std_logic_vector( phavg );
-  usrOut(usrOut'left downto 48)   <= (others => '0');
+  usrOut(usrOut'left downto 48)   <= std_logic_vector( phavgiir(31 downto 16) );
 
   P_PHASAVG : process ( txUsrClk_i ) is
+    variable v : unsigned(15 downto 0);
   begin
     if ( rising_edge( txUsrClk_i ) ) then
        if ( phavgcnt = 0 ) then
@@ -354,6 +357,8 @@ begin
              phavgrun <= phavgrun + 1;
           end if;
        end if;
+       v := (others => txBufStatus(0));
+       phavgiir <= phavgiir + (v - shift_right(phavgiir,16));
     end if;
   end process P_PHASAVG;
 
@@ -385,14 +390,26 @@ begin
 
   pllFInc                   <= txBufStatus(0);
 
-  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib, pllFInc ) is
+  P_FINC_R : process ( txUsrClk_i ) is
+  begin
+    if ( rising_edge( txUsrClk_i ) ) then
+      if ( pllcen = '1' ) then
+        pllFInc_r <= pllFInc;
+      end if;
+    end if;
+  end process P_FINC_R;
+
+  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib, pllFInc_r ) is
   begin
     if ( plldi(1) = '1' ) then
-      pippmStepSize             <= ib.txpippmstepsize;
       if ( plldi(0) = '1' ) then
-        pippmStepSize(4) <= not pllFInc;
+        pippmStepSize(4)          <= not pllFInc_r;
+        pippmStepSize(3 downto 0) <= "0001";
+        pippmEn                   <= '1';
+      else
+        pippmStepSize             <= ib.txpippmstepsize;
+        pippmEn                   <= ib.txpippmen;
       end if;
-      pippmEn                   <= ib.txpippmen;
     else
       pippmStepSize(3 downto 0) <= "0001";
       pippmStepSize(4)          <= fmod(fmod'left);
