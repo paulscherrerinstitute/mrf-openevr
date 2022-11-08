@@ -342,21 +342,18 @@ begin
   usrOut(usrOut'left downto 48)   <= (others => '0');
 
   P_PHASAVG : process ( txUsrClk_i ) is
-    variable v : unsigned(phavgcnt'range);
   begin
     if ( rising_edge( txUsrClk_i ) ) then
        if ( phavgcnt = 0 ) then
           phavg    <= phavgrun;
-          v        := (others => '0');
+          phavgrun <= (others => '0');
           phavgcnt <= phavgwin;
        else
-          v        := phavgrun;
           phavgcnt <= phavgcnt - 1;
+          if ( txBufStatus(0) = '1' ) then
+             phavgrun <= phavgrun + 1;
+          end if;
        end if;
-       if ( txBufStatus(0) = '1' ) then
-          v        := v + 1;
-       end if;
-       phavgrun <= v;
     end if;
   end process P_PHASAVG;
 
