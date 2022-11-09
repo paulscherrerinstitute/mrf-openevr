@@ -287,6 +287,7 @@ begin
     signal piVcoRst          : std_logic := '1';
     signal pllFInc           : std_logic := '0';
     signal pllFInc_r         : std_logic := '0';
+    signal pllStep_r         : std_logic := '0';
     signal pllcen            : std_logic := '0';
     signal phavg             : unsigned(15 downto 0) := (others => '0');
     signal phavgiir          : unsigned(31 downto 0) := (others => '0');
@@ -347,18 +348,26 @@ begin
     variable v : unsigned(15 downto 0);
   begin
     if ( rising_edge( txUsrClk_i ) ) then
-       if ( phavgcnt = 0 ) then
-          phavg    <= phavgrun;
-          phavgrun <= (others => '0');
-          phavgcnt <= phavgwin;
-       else
-          phavgcnt <= phavgcnt - 1;
-          if ( txBufStatus(0) = '1' ) then
-             phavgrun <= phavgrun + 1;
+       if ( pllcen = '1' ) then
+          pllFInc_r <= '0';
+          pllStep_r <= '0';
+          if ( phavgcnt = 0 ) then
+             phavg    <= phavgrun;
+             phavgrun <= (others => '0');
+             phavgcnt <= phavgwin;
+             if ( phavgrun > shift_right( phavgwin, 1 ) ) then 
+                pllFInc_r <= '1';
+             end if;
+             pllStep_r <= '1';
+          else
+             phavgcnt <= phavgcnt - 1;
+             if ( txBufStatus(0) = '1' ) then
+                phavgrun <= phavgrun + 1;
+             end if;
           end if;
+          v := (others => txBufStatus(0));
+          phavgiir <= phavgiir + (v - shift_right(phavgiir,16));
        end if;
-       v := (others => txBufStatus(0));
-       phavgiir <= phavgiir + (v - shift_right(phavgiir,16));
     end if;
   end process P_PHASAVG;
 
@@ -390,21 +399,12 @@ begin
 
   pllFInc                   <= txBufStatus(0);
 
-  P_FINC_R : process ( txUsrClk_i ) is
-  begin
-    if ( rising_edge( txUsrClk_i ) ) then
-      if ( pllcen = '1' ) then
-        pllFInc_r <= pllFInc;
-      end if;
-    end if;
-  end process P_FINC_R;
-
-  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib, pllFInc_r ) is
+  P_PLL_EXT : process ( plldi, fmod, piVcoRst, ib, pllFInc_r, pllStep_r ) is
   begin
     if ( plldi(1) = '1' ) then
       if ( plldi(0) = '1' ) then
         pippmStepSize(4)          <= not pllFInc_r;
-        pippmStepSize(3 downto 0) <= "0001";
+        pippmStepSize(3 downto 0) <= "000" & pllStep_r;
         pippmEn                   <= '1';
       else
         pippmStepSize             <= ib.txpippmstepsize;

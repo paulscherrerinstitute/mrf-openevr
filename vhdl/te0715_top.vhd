@@ -209,7 +209,8 @@ architecture structure of zynq_top is
     0 => x"0000_0000",
     1 => X"0000_ffff", -- phase error averaging
     2 => X"0100_0000",
-    7 => X"0001_7312", -- default pll parameters
+--    7 => X"0001_7312", -- default pll parameters
+    7 => x"C000_0000",
     others => (others => '0')
   );
 
@@ -511,7 +512,8 @@ begin
   roRegs(0)(3) <= delay_comp_update;
   roRegs(0)(7 downto 4) <= int_delay_updcnt;
 --  roRegs(1)    <= dbg3 & dbg2 & dbg1 & dbg0;
-  roRegs(1)    <= delay_comp_value;
+--  roRegs(1)    <= delay_comp_value;
+  roRegs(1)    <= usrOut(31 downto 0);
 --  roRegs(2)    <= delay_comp_rx_status;
   roRegs(2)    <= x"0000000" &  "0" & rwRegsWerr(6) & mgtOb.txbufstatus;
   roRegs(3)    <= databuf_dc_data_out;
