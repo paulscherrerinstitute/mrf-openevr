@@ -187,7 +187,7 @@ begin
       gt0_drpen_in => ib.drpen, -- in STD_LOGIC;
       gt0_drprdy_out => ob.drprdy, -- out STD_LOGIC;
       gt0_drpwe_in => ib.drpwe, -- in STD_LOGIC;
-      gt0_rxrate_in => GTP_OUTDIV_1_C, -- in STD_LOGIC_VECTOR ( 2 downto 0 );
+      gt0_rxrate_in => GTP_OUTDIV_2_C, -- in STD_LOGIC_VECTOR ( 2 downto 0 );
       gt0_eyescanreset_in => '0', -- in STD_LOGIC;
       gt0_rxuserrdy_in => ib.rxusrrdy, -- in STD_LOGIC;
       gt0_eyescandataerror_out => open, -- out STD_LOGIC;
@@ -221,7 +221,7 @@ begin
       gt0_txdata_in => ib.txdata, -- in STD_LOGIC_VECTOR ( 15 downto 0 );
       gt0_txusrclk_in  => txUsrClk_i, -- in STD_LOGIC;
       gt0_txusrclk2_in  => txUsrClk_i, -- in STD_LOGIC;
-      gt0_txrate_in => GTP_OUTDIV_1_C, -- in STD_LOGIC_VECTOR ( 2 downto 0 );
+      gt0_txrate_in => GTP_OUTDIV_2_C, -- in STD_LOGIC_VECTOR ( 2 downto 0 );
       gt0_txcharisk_in => ib.txcharisk, -- in STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_txbufstatus_out => txBufStatus, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_gtptxn_out => txn, -- out STD_LOGIC;
@@ -247,7 +247,7 @@ begin
    -- (see comment in GtpCommon)
    U_COMMON : entity work.GtpCommon
       generic map (
-         PLL0_FBDIV_IN    => 2,
+         PLL0_FBDIV_IN    => 4,
          PLL0_FBDIV_45_IN => 5
       )
       port map (
