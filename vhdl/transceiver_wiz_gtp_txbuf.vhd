@@ -292,6 +292,8 @@ begin
     signal phavg             : unsigned(15 downto 0) := (others => '0');
     signal phavgiir          : unsigned(31 downto 0) := (others => '0');
     signal phavgrun          : unsigned(15 downto 0) := (others => '0');
+    signal phavgcor          : std_logic := '0';
+    signal phavgclick        : std_logic := '0';
     signal phavgcnt          : unsigned(15 downto 0) := (others => '1');
     signal phavgwin          : unsigned(15 downto 0) := (others => '1');
     signal plldi             : std_logic_vector(1 downto 0) := (others => '0');
@@ -342,7 +344,9 @@ begin
   usrOut(15 downto  0)            <= std_logic_vector( freqm );
   usrOut(31 downto 16)            <= std_logic_vector( freq  );
   usrOut(47 downto 32)            <= std_logic_vector( phavg );
-  usrOut(usrOut'left downto 48)   <= std_logic_vector( phavgiir(31 downto 16) );
+  usrOut(          48)            <= phavgcor;
+  usrOut(          49)            <= phavgclick;
+  usrOut(usrOut'left downto 50)   <= std_logic_vector( phavgiir(31 downto 18) );
 
   P_PHASAVG : process ( txUsrClk_i ) is
     variable v : unsigned(15 downto 0);
@@ -357,8 +361,12 @@ begin
              phavgcnt <= phavgwin;
              if ( phavgrun > shift_right( phavgwin, 1 ) ) then 
                 pllFInc_r <= '1';
+                phavgcor  <= '1';
+             else
+                phavgcor  <= '0';
              end if;
-             pllStep_r <= '1';
+             pllStep_r  <= '1';
+             phavgclick <= not phavgclick;
           else
              phavgcnt <= phavgcnt - 1;
              if ( txBufStatus(0) = '1' ) then

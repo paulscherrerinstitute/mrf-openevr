@@ -405,7 +405,7 @@ begin
   -- data buffer starts at index 2..17
   dbufDat(2) <= mgtOb.usrOut(39 downto 32);
   dbufDat(3) <= mgtOb.usrOut(47 downto 40);
-  dbufDat(4) <= "000000" & mgtOb.txbufstatus(1 downto 0);
+  dbufDat(4) <= "0000" & mgtOb.usrOut(49 downto 48) & mgtOb.txbufstatus(1 downto 0);
 
   P_DATABUF_TX : process ( mgtIb.txusrclk ) is
     variable bytcnt : natural := 0;
