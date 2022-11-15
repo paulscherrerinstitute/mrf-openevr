@@ -43,6 +43,7 @@ entity zynq_top is
 end zynq_top;
 
 architecture structure of zynq_top is
+  attribute ASYNC_REG    : string;
 
   component evr_dc is
   port (
@@ -202,6 +203,8 @@ architecture structure of zynq_top is
   constant NUM_RW_REGS_C     : natural := 8;
   constant NUM_RO_REGS_C     : natural := 8;
 
+  constant PHASM_LEN_C       : natural := 28;
+
   type RegArray  is array ( natural range <> ) of std_logic_vector(31 downto 0);
   type ByteArray is array ( natural range <> ) of std_logic_vector( 7 downto 0);
 
@@ -233,6 +236,8 @@ architecture structure of zynq_top is
   signal dbg3        : std_logic_vector(7 downto 0) := (others => '0');
 
   signal dbufDat     : ByteArray(2 to 17) := (others => (others => '0') );
+
+  signal phasdiff    : unsigned(PHASM_LEN_C - 1 downto 0) := (others => '0');
 
 begin
 
@@ -465,15 +470,15 @@ begin
 
   databuf_dc_addr                   <= rwRegs(4)(databuf_dc_addr'range);
 
-  P_FLAGS : process ( rwRegs(5), databuf_cs_flag, databuf_rx_flag ) is
-  begin
-    databuf_clear_flag <= (others => '0');
-    for i in 31 downto 0 loop
-      databuf_clear_flag(i) <= rwRegs(5)(i);
-      roRegs(5)(i)          <= databuf_cs_flag(i);
-      roRegs(6)(i)          <= databuf_rx_flag(i);
-    end loop;
-  end process P_FLAGS;
+--  P_FLAGS : process ( rwRegs(5), databuf_cs_flag, databuf_rx_flag ) is
+--  begin
+--    databuf_clear_flag <= (others => '0');
+--    for i in 31 downto 0 loop
+--      databuf_clear_flag(i) <= rwRegs(5)(i);
+--      roRegs(5)(i)          <= databuf_cs_flag(i);
+--      roRegs(6)(i)          <= databuf_rx_flag(i);
+--    end loop;
+--  end process P_FLAGS;
 
   -- Process to send out event 0x01 periodically
   process (refclk)
@@ -518,6 +523,9 @@ begin
   roRegs(2)    <= x"0000000" &  "0" & rwRegsWerr(6) & mgtOb.txbufstatus;
   roRegs(3)    <= databuf_dc_data_out;
   roRegs(4)    <= usrOut(63 downto 32);
+  -- phasdiff doesn't currently work for GTX because it uses REFCLK as TXOUTCLK
+  roRegs(5)    <= x"0000" & std_logic_vector(phasdiff(phasdiff'left downto phasdiff'left - 16 + 1));
+  roRegs(6)    <= (others => '0');
 --  roRegs(4)    <= databuf_dc_size_out;
   roRegs(7)    <= int_delay_value;
 
@@ -563,7 +571,6 @@ begin
 
   B_PI : block is
     constant  STAGES_C     : natural   := 3;
-    attribute ASYNC_REG    : string;
 
     signal tglSys2TxUsrInp : std_logic := '0';
     signal tglSys2TxUsrReg : std_logic_vector(STAGES_C - 1 downto 0) := (others => '0');
@@ -654,7 +661,7 @@ begin
 
   end block B_PI;
 
-  P_SYNC : block
+  P_SYNC : block is
     signal reqA, ackA, reqB, ackB : std_logic;
   begin
     U_SYNC : entity work.mboxSynchronizer
@@ -682,5 +689,33 @@ begin
     ackB <= reqB;
 
   end block P_SYNC;
+
+  B_PHASM : block is
+    signal counter : unsigned(phasdiff'range) := (others => '0');
+    signal phcount : unsigned(phasdiff'range) := (others => '0');
+
+    signal syncXOR : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of syncXOR : signal is "TRUE";
+    signal phXOR   : std_logic;
+  begin
+
+    phXOR <= mgtOb.txoutclk xor mgtOb.txrefclk;
+
+    P_CNT : process ( sys_clk ) is
+    begin
+      if ( rising_edge( sys_clk ) ) then
+        syncXOR <= phXOR & syncXOR(syncXOR'left downto 1);
+        counter <= counter + 1;
+        if ( counter = 0 ) then
+          phasdiff <= phcount;
+          phcount  <= (others => '0');
+        else
+          if ( syncXOR(0) = '1' ) then
+            phcount <= phcount + 1;
+          end if;
+        end if;
+      end if;
+    end process P_CNT;
+  end block B_PHASM;
 
 end structure;
