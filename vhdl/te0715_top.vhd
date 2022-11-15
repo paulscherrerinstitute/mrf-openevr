@@ -197,7 +197,7 @@ architecture structure of zynq_top is
 
   signal topology_addr       : std_logic_vector(31 downto 0);
 
-  signal usrInp              : std_logic_vector(63 downto 0) := (others => '0');
+  signal usrInp              : std_logic_vector(79 downto 0) := (others => '0');
   signal usrOut              : std_logic_vector(63 downto 0) := (others => '0');
 
   constant NUM_RW_REGS_C     : natural := 8;
@@ -238,6 +238,7 @@ architecture structure of zynq_top is
   signal dbufDat     : ByteArray(2 to 17) := (others => (others => '0') );
 
   signal phasdiff    : unsigned(PHASM_LEN_C - 1 downto 0) := (others => '0');
+  signal phasdiffTx  : std_logic_vector(15 downto 0);
 
 begin
 
@@ -411,11 +412,14 @@ begin
   dbufDat(2) <= mgtOb.usrOut(39 downto 32);
   dbufDat(3) <= mgtOb.usrOut(47 downto 40);
   dbufDat(4) <= "0000" & mgtOb.usrOut(49 downto 48) & mgtOb.txbufstatus(1 downto 0);
+  dbufDat(5) <= phasdiffTx( 7 downto 0);
+  dbufDat(6) <= phasdiffTx(15 downto 8);
 
   P_DATABUF_TX : process ( mgtIb.txusrclk ) is
-    variable bytcnt : natural := 0;
-    variable segmnt : std_logic_vector(7 downto 0) := x"00";
-    variable csum   : unsigned(15 downto 0);
+    variable bytcnt           : natural := 0;
+    variable segmnt           : std_logic_vector(7 downto 0) := x"00";
+    variable csum             : unsigned(15 downto 0);
+    variable dbufDatBuf       : ByteArray( dbufDat'range );
   begin
 
     if ( rising_edge( mgtIb.txusrclk ) ) then
@@ -427,6 +431,7 @@ begin
             when 0 =>
                databuf_txd  <= x"5C";
                databuf_tx_k <= '1';
+               dbufDatBuf   := dbufDat;
             when 1 =>
                databuf_txd  <= segmnt;
                csum         := (others => '1');
@@ -444,7 +449,7 @@ begin
 
             when others =>
                csum         := csum - unsigned(databuf_txd);
-               databuf_txd  <= dbufDat( bytCnt );
+               databuf_txd  <= dbufDatBuf( bytCnt );
                databuf_tx_k <= '0';
          end case;
 
@@ -645,6 +650,7 @@ begin
 
     usrInp(31 downto  0) <= rwRegs(7);
     usrInp(63 downto 32) <= rwRegs(1);
+    usrInp(79 downto 64) <= std_logic_vector(phasdiff(phasdiff'left downto phasdiff'left - 16 + 1));
 
     P_DBG   : process ( sys_clk ) is
     begin
@@ -663,6 +669,7 @@ begin
 
   P_SYNC : block is
     signal reqA, ackA, reqB, ackB : std_logic;
+    signal usrInpB                : std_logic_vector(usrInp'range);
   begin
     U_SYNC : entity work.mboxSynchronizer
       generic map (
@@ -681,8 +688,10 @@ begin
          reqB        => reqB,
          ackB        => ackB,
          dinB        => mgtOb.usrOut,
-         douB        => mgtIb.usrInp
+         douB        => usrInpB
       );
+    mgtIb.usrInp     <= usrInpB(63 downto  0);
+    phasdiffTx       <= usrInpB(79 downto 64);
 
     -- ping-pong
     reqA <= not ackA;
