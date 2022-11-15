@@ -637,8 +637,8 @@ architecture structure of transceiver_dc_gt is
         TXCHARDISPMODE                  =>      gnd_vec(7 downto 0),
         TXCHARDISPVAL                   =>      gnd_vec(7 downto 0),
         ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
-        TXUSRCLK                        =>      txusrclk_i,
-        TXUSRCLK2                       =>      txusrclk_i,
+        TXUSRCLK                        =>      ib.txusrclk,
+        TXUSRCLK2                       =>      ib.txusrclk,
         --------------------- Transmit Ports - PCI Express Ports -------------------
         TXELECIDLE                      =>      gnd,
         TXMARGIN                        =>      gnd_vec(2 downto 0),
