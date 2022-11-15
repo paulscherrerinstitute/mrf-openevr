@@ -34,6 +34,7 @@ package transceiver_pkg is
 
       txbufstatus           : std_logic_vector( 1 downto 0);
       txoutclk              : std_logic;
+      txrefclk              : std_logic;
       txdlyadjen            : std_logic;
       txresetdone           : std_logic;
       usrOut                : std_logic_vector(63 downto 0);

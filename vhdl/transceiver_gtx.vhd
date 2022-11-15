@@ -100,6 +100,8 @@ architecture structure of transceiver_dc_gt is
   signal RXPCSRESET_in : std_logic;
   signal RXPMARESET_in : std_logic;
   signal RXEQMIX       : std_logic_vector(1 downto 0);
+  signal REFCLK_nb     : std_logic;
+  signal REFCLK_buf    : std_logic;
 
   signal txoutclk_i    : std_logic;
   signal txoutclk      : std_logic;
@@ -726,6 +728,8 @@ architecture structure of transceiver_dc_gt is
         O     => REFCLK1,
         ODIV2 => open);
     CPLLREFCLKSEL_in <= "010"; -- MGTREFCLK1
+
+    REFCLK_nb <= REFCLK1;
   end generate;
 
   refclk_select_0: 
@@ -740,7 +744,14 @@ architecture structure of transceiver_dc_gt is
         ODIV2   => open);
     REFCLK1 <= '0';
     CPLLREFCLKSEL_in <= "001"; -- MGTREFCLK0
+    REFCLK_nb <= REFCLK0;
   end generate;
+
+  refclk_fabricbuf_i : BUFG
+    port map (
+      I   => REFCLK_nb,
+      O   => REFCLK_buf
+    );
   
   txdata_i <= (tied_to_ground_vec_i(47 downto 0) & ib.txdata);
 
@@ -781,6 +792,7 @@ architecture structure of transceiver_dc_gt is
       I => txoutclk);
       
   ob.rxrecclk <= rxusrclk;
-  ob.txoutclk <= txoutclk_i;
+  ob.txoutclk <= txoutclk_i; -- in fact also REFLCK due to TXOUTCLKSEL = 011
+  ob.txrefclk <= REFCLK_buf;
   
 end architecture structure;

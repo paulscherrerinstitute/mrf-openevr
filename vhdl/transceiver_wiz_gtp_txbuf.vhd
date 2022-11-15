@@ -138,13 +138,13 @@ begin
   U_TXOUTCLK_BUF : BUFG
     port map (
       I => txOutClk_nb,
-      O => txOutClk
+      O => ob.txoutclk
     );
 
   U_TXREFCLK_BUF : BUFG
     port map (
       I => txRefClk_nb( toInt( REFCLKSEL ) ),
-      O => ob.txoutclk
+      O => ob.txrefclk
     );
 
 
