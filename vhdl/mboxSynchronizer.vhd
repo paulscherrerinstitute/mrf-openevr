@@ -22,7 +22,7 @@ entity MboxSynchronizer is
       reqA         : in  std_logic;
       ackA         : out std_logic;
       -- dinA must be held stable until ackA = reqB
-      dinA         : in  std_logic_vector(WIDTH_A2B_G - 1 downto 0);
+      dinA         : in  std_logic_vector(WIDTH_A2B_G - 1 downto 0) := (others => '0');
       douA         : out std_logic_vector(WIDTH_B2A_G - 1 downto 0);
       
 
