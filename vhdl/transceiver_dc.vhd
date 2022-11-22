@@ -75,6 +75,8 @@ end transceiver_dc;
 
 architecture structure of transceiver_dc is
 
+  attribute ASYNC_REG : string;
+
   signal vcc     : std_logic  := '1';
   signal gnd     : std_logic  := '0';
   signal gnd_vec : std_logic_vector(31 downto 0) := (others => '0');
@@ -171,6 +173,7 @@ architecture structure of transceiver_dc is
   END COMPONENT;
 
 begin
+
 
   -- ILA debug core
   G_ILA : if ( false ) generate
@@ -309,8 +312,11 @@ begin
 				  rx_disperr, rx_notintable)
     variable beacon_cnt : std_logic_vector(2 downto 0) := "000";
     variable cnt : std_logic_vector(12 downto 0);
+    variable link_ok_sync : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of link_ok_sync : variable is "TRUE";
   begin
     if rising_edge(rx_recclk) then
+      link_ok_sync := link_ok & link_ok_sync(link_ok_sync'left downto 1);
       rx_error <= '0';
       if (rx_charisk(0) = '1' and rx_data(7) = '1') or
         rx_disperr /= "00" or rx_notintable /= "00" then
@@ -319,7 +325,7 @@ begin
       if beacon_cnt(beacon_cnt'high) = '1' then
         beacon_cnt := beacon_cnt - 1;
       end if;
-      if link_ok = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
+      if link_ok_sync(0) = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
         beacon_cnt := "111";
       end if;
       rx_beacon_i <= beacon_cnt(beacon_cnt'high);
@@ -357,6 +363,10 @@ begin
     variable loss_lock : std_logic;
     variable rx_error_count : std_logic_vector(5 downto 0);
     variable reset_sync : std_logic_vector(1 downto 0);
+
+    attribute ASYNC_REG of rx_error_sync   : variable is "TRUE";
+    attribute ASYNC_REG of rx_error_sync_1 : variable is "TRUE";
+    attribute ASYNC_REG of reset_sync      : variable is "TRUE";
   begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
@@ -431,10 +441,13 @@ begin
 
   reg_dbus_data : process (event_clk, rx_link_ok_i, rx_data, databuf_rxd_i, databuf_rx_k_i)
     variable even : std_logic;
+    variable link_ok_dly_sync : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of link_ok_dly_sync : variable is "TRUE";
   begin
     databuf_rxd <= databuf_rxd_i;
     databuf_rx_k <= databuf_rx_k_i;
     if rising_edge(event_clk) then
+      link_ok_dly_sync := rx_link_ok_i & link_ok_dly_sync(link_ok_dly_sync'left downto 1);
       if databuf_rx_mode = '0' or even = '0' then
 	dbus_rxd <= fifo_do(7 downto 0);
       end if;
@@ -450,7 +463,7 @@ begin
 
       databuf_rx_ena <= even;
       
-      if rx_link_ok_i = '0' then
+      if link_ok_dly_sync(0) = '0' then
 	databuf_rxd_i <= (others => '0');
 	databuf_rx_k_i <= '0';
 	dbus_rxd <= (others => '0');
@@ -458,7 +471,7 @@ begin
 
       even := not even;
       event_rxd <= fifo_do(15 downto 8);
-      if rx_link_ok_i = '0' or fifo_dop(1) = '1' or
+      if link_ok_dly_sync(0) = '0' or fifo_dop(1) = '1' or
 	reset = '1' then
 	event_rxd <= (others => '0');
 	even := '0';
@@ -643,12 +656,16 @@ begin
   
   rx_resetting: process (tx_usrclk, rxcdrreset)
     variable cnt : std_logic_vector(25 downto 0) := (others => '1');
+    variable rx_resetdone_sync : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of rx_resetdone_sync : variable is "TRUE";
   begin
     if rising_edge(tx_usrclk) then
+      rx_resetdone_sync := rx_resetdone & rx_resetdone_sync(rx_resetdone_sync'left downto 1);
       rx_gtreset_i <= cnt(cnt'high);
       if ( cnt(cnt'high) = '1' ) then
         rx_gtresetting <= '1';
-      elsif ( rx_resetdone = '1' ) then
+      end if;
+      if ( rx_resetdone_sync(0) = '1' ) then
         rx_gtresetting <= '0';
       end if;
       rx_usrrdy_i <= not cnt(cnt'high);
@@ -667,6 +684,7 @@ begin
     variable even       : std_logic_vector(1 downto 0) := "00";
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
+    attribute ASYNC_REG of beacon_cnt : variable is "TRUE";
   begin
     tx_event_ena <= tx_event_ena_i;
     tx_event_ena_i <= '1';
