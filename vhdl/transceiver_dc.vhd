@@ -173,7 +173,7 @@ architecture structure of transceiver_dc is
 begin
 
   -- ILA debug core
-  G_ILA : if ( true ) generate
+  G_ILA : if ( false ) generate
   begin
   i_ila : ila_0
     port map (
