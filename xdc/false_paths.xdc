@@ -1,0 +1,7 @@
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*beacon_cnt_reg[[]3[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*rx_error_sync_1_reg} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly/sync_beacon_0_reg[[]3[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly/sync_beacon_1_reg[[]3[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*rx_resetdone_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*link_ok_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*link_ok_dly_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
