@@ -241,6 +241,7 @@ architecture structure of zynq_top is
   signal phasdiff    : std_logic_vector(15 downto 0)      := (others => '0');
   signal phasdiffSys : std_logic_vector(15 downto 0)      := (others => '0');
   signal phasdiffTx  : std_logic_vector(15 downto 0);
+  signal rx_bufreset : std_logic;
 
 begin
 
@@ -403,6 +404,7 @@ begin
   dc_slow_adjust    <= rwRegs(0)(7);
   rxCommaAlignEn    <= rwRegs(0)(8);
   mode_mst          <= rwRegs(0)(9);
+  rx_bufreset       <= rwRegs(0)(10);
 
   ctl               <= rwRegs(0)(31 downto 24);
 
@@ -413,7 +415,7 @@ begin
   -- data buffer starts at index 2..17
   dbufDat(2) <= mgtOb.usrOut(39 downto 32);
   dbufDat(3) <= mgtOb.usrOut(47 downto 40);
-  dbufDat(4) <= "0000" & mgtOb.usrOut(49 downto 48) & mgtOb.txbufstatus(1 downto 0);
+  dbufDat(4) <= "0" & mgtOb.rxbufstatus & mgtOb.usrOut(49 downto 48) & mgtOb.txbufstatus(1 downto 0);
   dbufDat(5) <= phasdiffTx( 7 downto 0);
   dbufDat(6) <= phasdiffTx(15 downto 8);
 
@@ -643,9 +645,10 @@ begin
       end if;
     end process P_PROCESS;
 
-    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb ) is
+    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb, rx_bufreset ) is
     begin
       mgtIb                     <= mgtIbSplice;
+      mgtIb.rxbufreset          <= rx_bufreset;
       mgtIb.txpippmen           <= '1';
       mgtIb.txpippmstepsize     <= pippmstepsize;
     end process P_SPLICE;

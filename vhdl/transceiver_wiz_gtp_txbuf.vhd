@@ -200,8 +200,10 @@ begin
       gt0_rxnotintable_out => ob.rxnotintable, -- out STD_LOGIC_VECTOR ( 1 downto 0 );
       gt0_gtprxn_in => rxn, -- in STD_LOGIC;
       gt0_gtprxp_in => rxp, -- in STD_LOGIC;
-      gt0_rxphmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
-      gt0_rxphslipmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
+--      gt0_rxphmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
+--      gt0_rxphslipmonitor_out => open, -- out STD_LOGIC_VECTOR ( 4 downto 0 );
+      gt0_rxbufreset_in => ib.rxbufreset, -- in STD_LOGIC
+      gt0_rxbufstatus_out => ob.rxbufstatus, -- out STD_LOGIC_VECTOR ( 2 downto 0 );
       gt0_rxmcommaalignen_in => ib.rxcommaalignen, -- in STD_LOGIC;
       gt0_rxpcommaalignen_in => ib.rxcommaalignen, -- in STD_LOGIC;
       gt0_dmonitorout_out => open, -- out STD_LOGIC_VECTOR ( 14 downto 0 );
