@@ -210,7 +210,7 @@ architecture structure of zynq_top is
   type ByteArray is array ( natural range <> ) of std_logic_vector( 7 downto 0);
 
   signal rwRegs : RegArray(0 to NUM_RW_REGS_C - 1) := (
-    0 => x"0100_0000",
+    0 => x"0000_0000",
     1 => X"0000_ffff", -- phase error averaging
     2 => X"0100_0000",
 --    7 => X"0001_7312", -- default pll parameters
