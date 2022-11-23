@@ -147,12 +147,38 @@ begin
       O => ob.txrefclk
     );
 
+  B_EAT_RX_CLK : block is
+    attribute ASYNC_REG   : string;
+    signal eat            : std_logic := '1';
+    signal auxClk         : std_logic;
+    signal eat_sync       : std_logic_vector(3 downto 0) := (others => '0');
+    attribute ASYNC_REG of eat_sync : signal is "TRUE";
+    signal cen            : std_logic;
+  begin
 
-  U_RXOUTCLK_BUF : BUFG
+  P_EAT : process ( auxClk ) is
+  begin
+    if ( rising_edge( auxClk ) ) then
+       eat_sync <= ib.rxClkEatTgl & eat_sync(eat_sync'left downto 1);
+    end if;
+  end process P_EAT;
+
+  cen <= eat_sync(0) xnor eat_sync(1);
+
+  U_AUXBUF : BUFH
     port map (
       I => rxRecClk_nb,
+      O => auxClk
+    );
+
+  U_RXOUTCLK_BUF : BUFGCE
+    port map (
+      I => rxRecClk_nb,
+     CE => cen,
       O => rxRecClk_i
     );
+
+  end block B_EAT_RX_CLK;
 
   rxRst_i         <= ib.gtrxreset or ib.mgtreset;
   txRst_i         <= ib.gttxreset or ib.mgtreset;

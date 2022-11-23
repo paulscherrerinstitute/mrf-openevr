@@ -5,3 +5,4 @@ set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly/sync
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*rx_resetdone_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*link_ok_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*link_ok_dly_sync_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*eat_sync_reg[[]3[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME=~D}]

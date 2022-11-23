@@ -176,7 +176,7 @@ begin
 
 
   -- ILA debug core
-  G_ILA : if ( false ) generate
+  G_ILA : if ( true ) generate
   begin
   i_ila : ila_0
     port map (

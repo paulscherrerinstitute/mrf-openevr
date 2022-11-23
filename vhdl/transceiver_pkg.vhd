@@ -57,6 +57,7 @@ package transceiver_pkg is
       rxcommaalignen        : std_logic;
       txpippmen             : std_logic;
       txpippmstepsize       : std_logic_vector(4 downto 0);
+      rxClkEatTgl           : std_logic;
 
       txusrclk              : std_logic;
       gttxreset             : std_logic;

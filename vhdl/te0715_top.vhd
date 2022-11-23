@@ -242,6 +242,7 @@ architecture structure of zynq_top is
   signal phasdiffSys : std_logic_vector(15 downto 0)      := (others => '0');
   signal phasdiffTx  : std_logic_vector(15 downto 0);
   signal rx_bufreset : std_logic;
+  signal rx_clkEatTgl: std_logic;
 
 begin
 
@@ -405,6 +406,7 @@ begin
   rxCommaAlignEn    <= rwRegs(0)(8);
   mode_mst          <= rwRegs(0)(9);
   rx_bufreset       <= rwRegs(0)(10);
+  rx_clkEatTgl      <= rwRegs(0)(11);
 
   ctl               <= rwRegs(0)(31 downto 24);
 
@@ -651,6 +653,7 @@ begin
       mgtIb.rxbufreset          <= rx_bufreset;
       mgtIb.txpippmen           <= '1';
       mgtIb.txpippmstepsize     <= pippmstepsize;
+      mgtIb.rxClkEatTgl         <= rx_clkEatTgl;
     end process P_SPLICE;
 
     usrInp(31 downto  0) <= rwRegs(7);
