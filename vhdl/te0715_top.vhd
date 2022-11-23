@@ -647,7 +647,7 @@ begin
       end if;
     end process P_PROCESS;
 
-    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb, rx_bufreset ) is
+    P_SPLICE : process ( mgtIbSplice, pippmstepsize, mgtOb, rx_bufreset, rx_clkEatTgl ) is
     begin
       mgtIb                     <= mgtIbSplice;
       mgtIb.rxbufreset          <= rx_bufreset;
