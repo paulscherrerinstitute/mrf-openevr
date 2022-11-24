@@ -35,6 +35,13 @@ entity databuf_rx_dc is
     databuf_ena       : in std_logic;
     event_clk         : in std_logic;
 
+    -- Databuf outbound stream interface;
+    -- someone may be interested in picking out snippets of
+    -- the databuf as it is streamed into the memory
+    databuf_strm_data : out std_logic_vector( 7 downto 0);
+    databuf_strm_addr : out std_logic_vector(10 downto 0);
+    databuf_strm_vld  : out std_logic;
+
     delay_comp_update : out std_logic;
     delay_comp_rx     : out std_logic_vector(31 downto 0);
     delay_comp_status : out std_logic_vector(31 downto 0);
@@ -365,6 +372,10 @@ begin
       doutb => data_out_i,
       wea => we_A,
       web => gnd);
+
+  databuf_strm_data <= rx_data;
+  databuf_strm_addr <= rx_addr;
+  databuf_strm_vld  <= we_A;
 
   bram_0 : RAMB36E1
     generic map (
