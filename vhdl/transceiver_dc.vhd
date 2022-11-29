@@ -20,7 +20,7 @@ use work.evr_pkg.all;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 
-entity transceiver_dc_k7 is
+entity transceiver_dc is
   generic
     (
       RX_DFE_KL_CFG2_IN            : bit_vector :=  X"3010D90C";
@@ -82,9 +82,9 @@ entity transceiver_dc_k7 is
     TXN             : out   std_logic;
     TXP             : out   std_logic
     );
-end transceiver_dc_k7;
+end transceiver_dc;
 
-architecture structure of transceiver_dc_k7 is
+architecture structure of transceiver_dc is
 
   signal vcc     : std_logic;
   signal gnd     : std_logic;
@@ -165,57 +165,7 @@ architecture structure of transceiver_dc_k7 is
   signal txrundisp_float_i                :   std_logic_vector(5 downto 0);
   signal txbufstatus_i                    :   std_logic_vector(1 downto 0);  
 
-  signal CPLLFBCLKLOST_out : std_logic;
-  signal CPLLLOCK_out : std_logic;
-  signal CPLLREFCLKSEL_in : std_logic_vector(2 downto 0);
-  signal CPLLREFCLKLOST_out : std_logic;
-  signal CPLLRESET_in : std_logic;
-  signal RXUSERRDY_in : std_logic;
-  signal RXCDRHOLD_in : std_logic;
-  signal RXCDRLOCK_out : std_logic;
-  signal RXDISPERR_out : std_logic_vector(1 downto 0);
-  signal RXNOTINTABLE_out : std_logic_vector(1 downto 0);
-  signal RXBUFRESET_in : std_logic;
-  signal RXDLYEN_in : std_logic;
-  signal RXDLYSRESET_in : std_logic;
-  signal RXDLYSRESETDONE_out : std_logic;
-  signal RXPHALIGN_in : std_logic;
-  signal RXPHALIGNDONE_out : std_logic;
-  signal RXPHALIGNEN_in : std_logic;
-  signal RXPHDLYRESET_in : std_logic;
-  signal RXPHMONITOR_out : std_logic_vector(4 downto 0);
-  signal RXPHSLIPMONITOR_out : std_logic_vector(4 downto 0);
-  signal RXBYTEISALIGNED_out : std_logic;
-  signal RXBYTEREALIGN_out : std_logic;
-  signal RXCOMMADET_out : std_logic;
-  signal RXDFELPMRESET_in : std_logic;
-  signal RXOUTCLK_out : std_logic;
-  signal RXOUTCLKPCS_out : std_logic; 
-  signal GTRXRESET_in : std_logic;
-  signal RXPCSRESET_in : std_logic;
-  signal RXPMARESET_in : std_logic;
-  signal RXLPMEN_in : std_logic;
-  signal RXPOLARITY_in : std_logic;
-  signal RXSLIDE_in : std_logic;
-  signal RXCHARISK_out : std_logic_vector(1 downto 0);
-  signal RXRESETDONE_out : std_logic;
-  signal GTTXRESET_in : std_logic;
-  signal TXUSERRDY_in : std_logic;
-  signal TXDLYEN_in : std_logic;
-  signal TXDLYSRESET_in : std_logic;
-  signal TXPHALIGN_in : std_logic;
-  signal TXPHALIGNEN_in : std_logic;
-  signal TXPHDLYRESET_in : std_logic;
-  signal TXPHINIT_in : std_logic;
-  signal TXOUTCLK_out : std_logic;
-  signal TXOUTCLKFABRIC_out : std_logic;
-  signal TXOUTCLKPCS_out : std_logic;
-  signal TXPCSRESET_in : std_logic;
-  signal TXPMARESET_in : std_logic;
-  signal TXCHARISK_in : std_logic_vector(1 downto 0);
-  signal TXRESETDONE_out : std_logic;
-  signal TXPOLARITY_in : std_logic;
-  
+ 
   -- RX Datapath signals
   signal rxdata0_i                        :   std_logic_vector(31 downto 0);      
   signal rxcharisk0_float_i               :   std_logic_vector(1 downto 0);
@@ -261,6 +211,16 @@ architecture structure of transceiver_dc_k7 is
       );
   END COMPONENT;
 
+  signal CPLLRESET_in : std_logic;
+  signal CPLLLOCK_out : std_logic;
+  signal GTRXRESET_in : std_logic;
+  signal GTTXRESET_in : std_logic;
+  signal RXCDRLOCK_out : std_logic;
+  signal RXRESETDONE_out : std_logic;
+  signal RXUSERRDY_in : std_logic;
+  signal TXUSERRDY_in : std_logic;
+
+
 begin
 
   -- ILA debug core
@@ -268,6 +228,52 @@ begin
     port map (
       CLK => txusrclk,
       probe0 => TRIG0);
+
+  B_DBG : block is
+  signal CPLLFBCLKLOST_out : std_logic;
+  signal CPLLREFCLKSEL_in : std_logic_vector(2 downto 0);
+  signal CPLLREFCLKLOST_out : std_logic;
+  signal RXCDRHOLD_in : std_logic;
+  signal RXDISPERR_out : std_logic_vector(1 downto 0);
+  signal RXNOTINTABLE_out : std_logic_vector(1 downto 0);
+  signal RXBUFRESET_in : std_logic;
+  signal RXDLYEN_in : std_logic;
+  signal RXDLYSRESET_in : std_logic;
+  signal RXDLYSRESETDONE_out : std_logic;
+  signal RXPHALIGN_in : std_logic;
+  signal RXPHALIGNDONE_out : std_logic;
+  signal RXPHALIGNEN_in : std_logic;
+  signal RXPHDLYRESET_in : std_logic;
+  signal RXPHMONITOR_out : std_logic_vector(4 downto 0);
+  signal RXPHSLIPMONITOR_out : std_logic_vector(4 downto 0);
+  signal RXBYTEISALIGNED_out : std_logic;
+  signal RXBYTEREALIGN_out : std_logic;
+  signal RXCOMMADET_out : std_logic;
+  signal RXDFELPMRESET_in : std_logic;
+  signal RXOUTCLK_out : std_logic;
+  signal RXOUTCLKPCS_out : std_logic; 
+  signal RXPCSRESET_in : std_logic;
+  signal RXPMARESET_in : std_logic;
+  signal RXLPMEN_in : std_logic;
+  signal RXPOLARITY_in : std_logic;
+  signal RXSLIDE_in : std_logic;
+  signal RXCHARISK_out : std_logic_vector(1 downto 0);
+  signal TXDLYEN_in : std_logic;
+  signal TXDLYSRESET_in : std_logic;
+  signal TXPHALIGN_in : std_logic;
+  signal TXPHALIGNEN_in : std_logic;
+  signal TXPHDLYRESET_in : std_logic;
+  signal TXPHINIT_in : std_logic;
+  signal TXOUTCLK_out : std_logic;
+  signal TXOUTCLKFABRIC_out : std_logic;
+  signal TXOUTCLKPCS_out : std_logic;
+  signal TXPCSRESET_in : std_logic;
+  signal TXPMARESET_in : std_logic;
+  signal TXCHARISK_in : std_logic_vector(1 downto 0);
+  signal TXRESETDONE_out : std_logic;
+  signal TXPOLARITY_in : std_logic;
+ 
+  begin
 
   gtxe2_X0Y0_i :GTXE2_CHANNEL
     generic map
@@ -854,6 +860,7 @@ begin
 
     );
 
+
   refclk_select_1: 
   if REFCLKSEL = '1' generate
     REFCLK0 <= '0';
@@ -881,6 +888,39 @@ begin
     REFCLK1 <= '0';
     CPLLREFCLKSEL_in <= "001"; -- MGTREFCLK0
   end generate;
+
+  RXEQMIX <= "01";
+  RXDFELPMRESET_in <= reset;
+  RXDLYEN_in <= '0';
+  RXDLYSRESET_in <= reset;
+  RXPCSRESET_in <= reset;
+  RXPHALIGN_in <= '0';
+  RXPHALIGNEN_in <= '0';
+  RXPHDLYRESET_in <= reset;
+  RXPMARESET_in <= reset;
+  RXPOLARITY_in <= RX_POLARITY;
+  RXSLIDE_in <= '0';
+  TXDLYEN_in <= '0';
+  TXDLYSRESET_in <= reset;
+  TXPCSRESET_in <= '0';
+  TXPHALIGN_in <= '0';
+  TXPHALIGNEN_in <= '0';
+  TXPHDLYRESET_in <= '0';
+  TXPHINIT_in <= '0';
+  TXPMARESET_in <= '0';
+  TXPOLARITY_in <= TX_POLARITY;
+ 
+  i_bufg0: BUFG
+    port map (
+      O => rxusrclk,
+      I => RXOUTCLK_out);
+
+  i_bufg1: BUFG
+    port map (
+      O => txusrclk,
+      I => tx_outclk);
+ 
+  end block B_DBG;
 
   i_dc_fifo : FIFO36E1
     generic map (
@@ -959,37 +999,6 @@ begin
   tied_to_ground_i                    <= '0';
   tied_to_ground_vec_i(63 downto 0)   <= (others => '0');
   tied_to_vcc_i                       <= '1';
-
-  RXEQMIX <= "01";
-  RXDFELPMRESET_in <= reset;
-  RXDLYEN_in <= '0';
-  RXDLYSRESET_in <= reset;
-  RXPCSRESET_in <= reset;
-  RXPHALIGN_in <= '0';
-  RXPHALIGNEN_in <= '0';
-  RXPHDLYRESET_in <= reset;
-  RXPMARESET_in <= reset;
-  RXPOLARITY_in <= RX_POLARITY;
-  RXSLIDE_in <= '0';
-  TXDLYEN_in <= '0';
-  TXDLYSRESET_in <= reset;
-  TXPCSRESET_in <= '0';
-  TXPHALIGN_in <= '0';
-  TXPHALIGNEN_in <= '0';
-  TXPHDLYRESET_in <= '0';
-  TXPHINIT_in <= '0';
-  TXPMARESET_in <= '0';
-  TXPOLARITY_in <= TX_POLARITY;
-  
-  i_bufg0: BUFG
-    port map (
-      O => rxusrclk,
-      I => RXOUTCLK_out);
-
-  i_bufg1: BUFG
-    port map (
-      O => txusrclk,
-      I => tx_outclk);
 
   recclk_out <= rxusrclk;
   REFCLK_OUT <= refclk;
@@ -1234,8 +1243,8 @@ begin
   TRIG0(87 downto 80) <= databuf_rxd_i;
   TRIG0(88) <= databuf_rx_k_i;
   TRIG0(89) <= RXCDRLOCK_out;
-  TRIG0(90) <= RXPCSRESET_in;
-  TRIG0(91) <= RXPMARESET_in;
+  TRIG0(90) <= '0';
+  TRIG0(91) <= '0';
   TRIG0(92) <= RXRESETDONE_out;
   TRIG0(116 downto 93) <= (others => '0');
   TRIG0(117) <= databuf_tx_mode;
