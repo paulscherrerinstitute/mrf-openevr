@@ -67,7 +67,7 @@ end evr_dc;
 
 architecture structure of evr_dc is
 
-  component transceiver_dc_k7 is
+  component transceiver_dc is
     generic
       (
         RX_DFE_KL_CFG2_IN            : bit_vector :=  X"3010D90C";
@@ -252,7 +252,7 @@ architecture structure of evr_dc is
 
 begin
 
-  i_upstream : transceiver_dc_k7
+  i_upstream : transceiver_dc
     generic map (
       RX_POLARITY => '0',
       TX_POLARITY => '0',
