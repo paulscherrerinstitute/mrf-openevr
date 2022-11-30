@@ -273,10 +273,10 @@ begin
   end process;
 
   -- ILA debug core
-  i_ila : ila_0
-    port map (
-      CLK => txusrclk,
-      probe0 => TRIG0);
+--  i_ila : ila_0
+--    port map (
+--      CLK => txusrclk,
+--      probe0 => TRIG0);
 
   gt_i : transceiver_gt
     generic map
@@ -620,32 +620,34 @@ begin
   end process;
 
   violation_flag : process (sys_clk, rx_clear_viol, rx_link_ok_i, rx_vio_usrclk)
-    variable vio : std_logic;
+    variable vio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of vio : variable is "TRUE";
   begin
     if rising_edge(sys_clk) then
       if rx_clear_viol = '1' then
         rx_violation <= '0';
       end if;
-      if vio = '1' or rx_link_ok_i = '0' then
+      if vio(0) = '1' then
         rx_violation <= '1';
       end if;
-      vio := rx_vio_usrclk;
+      vio := (rx_vio_usrclk or not rx_link_ok_i) & vio(vio'left downto 1);
     end if;
   end process;
   
   violation_detect : process (rxusrclk, rx_clear_viol,
 			      rx_disperr, rx_notintable, link_ok)
-    variable clrvio : std_logic;
+    variable clrvio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of clrvio : variable is "TRUE";
   begin
     if rising_edge(rxusrclk) then
       if rx_disperr /= "00" or
         rx_notintable /= "00" then
 	rx_vio_usrclk <= '1';
-      elsif clrvio = '1' then
+      elsif clrvio(0) = '1' then
         rx_vio_usrclk <= '0';
       end if;
 
-      clrvio := rx_clear_viol;
+      clrvio := rx_clear_viol & clrvio(clrvio'left downto 1);
     end if;
   end process;
 
@@ -853,6 +855,7 @@ begin
   
   fifo_read_enable : process (event_clk, delay_inc)
     variable sr_delay_trig : std_logic_vector(2 downto 0) := "000";
+    attribute ASYNC_REG of sr_delay_trig : variable is "TRUE";
   begin
     if rising_edge(event_clk) then
       fifo_rden <= '1';
@@ -865,6 +868,7 @@ begin
   
   fifo_write_enable : process (rxusrclk, delay_dec)
     variable sr_delay_trig : std_logic_vector(2 downto 0) := "000";
+    attribute ASYNC_REG of sr_delay_trig : variable is "TRUE";
   begin
     if rising_edge(rxusrclk) then
       fifo_wren <= '1';

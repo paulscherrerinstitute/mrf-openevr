@@ -459,6 +459,16 @@ begin
     evtclk_rst_i <= sync_reset(0);
   end process;
 
+  p_evr_dc_sync_refclk : process ( refclk )
+  variable sync_dly_comp_locked : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of sync_dly_comp_locked : variable is "TRUE";
+  begin
+    if ( rising_edge( refclk ) ) then
+       sync_dly_comp_locked := reset & sync_dly_comp_locked(sync_dly_comp_locked'left downto 1);
+    end if;
+    dc_fast_adjust <= not sync_dly_comp_locked(0);
+  end process;
+
   refclk_out <= refclk;
   refclk_rst <= refclk_rst_i;
   event_clk_out <= event_clk;
@@ -483,7 +493,6 @@ begin
   up_databuf_rx_mode <= databuf_rx_mode;
   up_databuf_tx_mode <= databuf_tx_mode;
 
-  dc_fast_adjust <= not delay_comp_locked;
   dc_slow_adjust <= '0'; -- test_out(0);
   delay_comp_locked_out <= delay_comp_locked;
   

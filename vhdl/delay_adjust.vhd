@@ -72,6 +72,7 @@ entity delay_adjust is
 end entity delay_adjust;
 
 architecture struct of delay_adjust is
+  attribute ASYNC_REG    : string;
   
   signal phase_error     : std_logic_vector(31 downto 0);
   signal delay_valid     : std_logic;
@@ -93,6 +94,7 @@ architecture struct of delay_adjust is
   signal fe_dec_i        : std_logic_vector(17 downto 0);
   signal dcm_adjust_frac : std_logic_vector(17 downto 0);
   signal adjust_locked_i : std_logic;
+  signal link_ok_i       : std_logic;
 
   signal dcm_update      : std_logic := '0';
   signal dcm_step_change : std_logic_vector(2 downto 0) := "000";
@@ -146,9 +148,12 @@ begin
            int_delay_value, int_delay_update, int_delay_init, dc_mode)
     variable sync_dc_value  : std_logic_vector(31 downto 0) := X"00000000";
     variable sync_id_value  : std_logic_vector(31 downto 0) := X"00000000";
-    variable sync_dc_update : std_logic_vector(1 downto 0) := "00";
-    variable sync_id_update : std_logic_vector(1 downto 0) := "00";
-    variable sync_init      : std_logic_vector(1 downto 0) := "00";
+    variable sync_dc_update : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_dc_update : variable is "TRUE";
+    variable sync_id_update : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_id_update : variable is "TRUE";
+    variable sync_init      : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_init      : variable is "TRUE";
     variable sync_dc_id     : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_short    : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_long     : std_logic_vector(31 downto 0) := X"00000000";
@@ -169,9 +174,9 @@ begin
         sync_dc_value := (others => '0');
       end if;
       sync_dc_id := sync_dc_value + sync_id_value;
-      sync_dc_update := sync_dc_update(0) & delay_comp_update;
-      sync_id_update := sync_id_update(0) & int_delay_update;
-      sync_init := sync_init(0) & int_delay_init;
+      sync_dc_update := sync_dc_update(sync_dc_update'high - 1 downto 0) & delay_comp_update;
+      sync_id_update := sync_id_update(sync_id_update'high - 1 downto 0) & int_delay_update;
+      sync_init := sync_init(sync_init'high - 1 downto 0) & int_delay_init;
 
       
       delay_too_short <= '0';
@@ -199,6 +204,8 @@ begin
     variable dcm_step         : std_logic_vector(17 downto 0) := "00" & X"00A7";
     variable updt_delay_sr    : std_logic_vector(2 downto 0) := "000";
     variable delay_value_updt : std_logic;
+    variable sync_link_ok     : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     state_i <= state;
     cycle_error_i <= cycle_error;
@@ -208,6 +215,7 @@ begin
     fe_dec_i <= fe_dec;
     dcm_adjust_frac <= fraction_error;
     adjust_locked <= adjust_locked_i;
+    link_ok_i <= sync_link_ok(0);
     
     if rising_edge(clk) then
       delay_value_updt := '0';
@@ -296,7 +304,7 @@ begin
         delay_inc <= '0';
         delay_dec <= '0';
       end if;
-      if link_ok = '0' then
+      if sync_link_ok(0) = '0' then
         state := "000";
         dcm_fine_adjust <= '0';
         dcm_reload_err <= '0';
@@ -306,6 +314,7 @@ begin
         cnt(cnt'high) := '0';
       end if;
       cnt := cnt + 1;
+      sync_link_ok := link_ok & sync_link_ok(sync_link_ok'left downto 1);
     end if;
   end process;
   
@@ -320,6 +329,7 @@ begin
     variable psinc          : std_logic;
     variable psdec          : std_logic;
     variable dcm_updt_sr    : std_logic_vector(2 downto 0);
+    attribute ASYNC_REG of dcm_updt_sr : variable is "TRUE";
   begin
     if rising_edge(psclk) then
       psinc := '0';
@@ -429,7 +439,7 @@ begin
   TRIG0(39) <= ce;
   TRIG0(42 downto 40) <= state_i;
   TRIG0(61 downto 46) <= cycle_error_i;
-  TRIG0(43) <= link_ok;
+  TRIG0(43) <= link_ok_i;
   TRIG0(44) <= disable;
   TRIG0(45) <= adjust_locked_i;
   TRIG0(127 downto 62) <= (others => '0');
