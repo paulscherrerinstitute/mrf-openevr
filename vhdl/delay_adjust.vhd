@@ -330,6 +330,8 @@ begin
     variable psdec          : std_logic;
     variable dcm_updt_sr    : std_logic_vector(2 downto 0);
     attribute ASYNC_REG of dcm_updt_sr : variable is "TRUE";
+    variable sync_link_ok   : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     if rising_edge(psclk) then
       psinc := '0';
@@ -409,7 +411,7 @@ begin
         end if;
       end if;
       dcm_updt_sr := dcm_updt_sr(1 downto 0) & dcm_update;
-      if link_ok = '0' then
+      if sync_link_ok(0) = '0' then
         dcm_phase := (others => '0');
         pwm_cnt := (others => '1');
         pwm_cnt(pwm_cnt'high) := '0';
@@ -417,6 +419,7 @@ begin
         zero_phase := '1';
         pwm_done := '0';
       end if;
+      sync_link_ok := link_ok & sync_link_ok(sync_link_ok'left downto 1);
     end if;
 
     s_dcm_step_phase <= dcm_step_phase;

@@ -96,7 +96,6 @@ architecture structure of transceiver_dc is
   attribute ASYNC_REG of sync_reset_rxusrclk  : signal is "TRUE";
   attribute ASYNC_REG of sync_reset_drpclk    : signal is "TRUE";
 
-
   signal vcc     : std_logic;
   signal gnd     : std_logic;
   signal gnd_vec : std_logic_vector(31 downto 0);
@@ -116,6 +115,7 @@ architecture structure of transceiver_dc is
   signal rxcdrreset    : std_logic;
 
   signal link_ok         : std_logic;
+  signal link_ok_rxusr   : std_logic;
   signal align_error     : std_logic;
   signal rx_error        : std_logic;
   signal rx_int_beacon_i : std_logic;
@@ -448,8 +448,12 @@ begin
 				  rx_disperr, rx_notintable)
     variable beacon_cnt : std_logic_vector(2 downto 0) := "000";
     variable cnt : std_logic_vector(12 downto 0);
+    variable sync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     if rising_edge(rxusrclk) then
+      sync_link_ok  := link_ok & sync_link_ok(sync_link_ok'left downto 1);
+      link_ok_rxusr <= sync_link_ok(0);
       rx_error <= '0';
       if (rx_charisk(0) = '1' and rx_data(7) = '1') or
         rx_disperr /= "00" or rx_notintable /= "00" then
@@ -458,7 +462,7 @@ begin
       if beacon_cnt(beacon_cnt'high) = '1' then
         beacon_cnt := beacon_cnt - 1;
       end if;
-      if link_ok = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
+      if sync_link_ok(0) = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
         beacon_cnt := "111";
       end if;
       rx_beacon_i <= beacon_cnt(beacon_cnt'high);
@@ -491,16 +495,16 @@ begin
 				 rx_disperr, CPLLLOCK_out)
     variable prescaler : std_logic_vector(14 downto 0);
     variable count : std_logic_vector(3 downto 0);
-    variable rx_error_sync : std_logic;
-    variable rx_error_sync_1 : std_logic;
+    variable sync_rx_error : std_logic_vector(1 downto 0) := (others => '0');
     variable loss_lock : std_logic;
     variable rx_error_count : std_logic_vector(5 downto 0);
     variable sync_reset : std_logic_vector(1 downto 0);
     attribute ASYNC_REG of sync_reset : variable is "TRUE";
+    attribute ASYNC_REG of sync_rx_error : variable is "TRUE";
   begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
-    TRIG0(60) <= rx_error_sync;
+    TRIG0(60) <= sync_rx_error(0);
     TRIG0(75 downto 61) <= prescaler;
     TRIG0(79 downto 76) <= count;
     
@@ -534,7 +538,7 @@ begin
 
 	loss_lock := rx_error_count(5);
 
-        if rx_error_sync = '1' then
+        if sync_rx_error(0) = '1' then
           if rx_error_count(5) = '0' then
             rx_error_count := rx_error_count - 1;
           end if;
@@ -552,9 +556,9 @@ begin
         end if;
       end if;
 
-      rx_error_i <= rx_error_sync_1;
-      rx_error_sync := rx_error_sync_1;
-      rx_error_sync_1 := rx_error;
+      rx_error_i <= sync_rx_error(0);
+
+      sync_rx_error := rx_error & sync_rx_error(sync_rx_error'left downto 1);
       
       if sync_reset(0) = '1' then
         count := "1111";
@@ -571,10 +575,13 @@ begin
 
   reg_dbus_data : process (event_clk, rx_link_ok_i, rx_data, databuf_rxd_i, databuf_rx_k_i)
     variable even : std_logic;
+    variable sync_link_ok_dly: std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok_dly : variable is "TRUE";
   begin
     databuf_rxd <= databuf_rxd_i;
     databuf_rx_k <= databuf_rx_k_i;
     if rising_edge(event_clk) then
+      sync_link_ok_dly := rx_link_ok_i & sync_link_ok_dly(sync_link_ok_dly'left downto 1);
       if databuf_rx_mode = '0' or even = '0' then
 	dbus_rxd <= fifo_do(7 downto 0);
       end if;
@@ -590,7 +597,7 @@ begin
 
       databuf_rx_ena <= even;
       
-      if rx_link_ok_i = '0' then
+      if sync_link_ok_dly(0) = '0' then
 	databuf_rxd_i <= (others => '0');
 	databuf_rx_k_i <= '0';
 	dbus_rxd <= (others => '0');
@@ -598,8 +605,7 @@ begin
 
       even := not even;
       event_rxd <= fifo_do(15 downto 8);
-      if rx_link_ok_i = '0' or fifo_dop(1) = '1' or
-	event_clk_rst = '1' then
+      if sync_link_ok_dly(0) = '0' or fifo_dop(1) = '1' or event_clk_rst = '1' then
 	event_rxd <= (others => '0');
 	even := '0';
       end if;
@@ -619,10 +625,12 @@ begin
     end if;
   end process;
 
-  violation_flag : process (sys_clk, rx_clear_viol, rx_link_ok_i, rx_vio_usrclk)
+  violation_flag : process (sys_clk, rx_clear_viol, link_ok_rxusr, rx_vio_usrclk)
     variable vio : std_logic_vector(1 downto 0) := (others => '0');
     attribute ASYNC_REG of vio : variable is "TRUE";
+    variable vio_in : std_logic;
   begin
+    vio_in := rx_vio_usrclk or not link_ok_rxusr;
     if rising_edge(sys_clk) then
       if rx_clear_viol = '1' then
         rx_violation <= '0';
@@ -630,7 +638,7 @@ begin
       if vio(0) = '1' then
         rx_violation <= '1';
       end if;
-      vio := (rx_vio_usrclk or not rx_link_ok_i) & vio(vio'left downto 1);
+      vio := vio_in & vio(vio'left downto 1);
     end if;
   end process;
   
@@ -806,6 +814,7 @@ begin
     variable even       : std_logic_vector(1 downto 0) := "00";
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
+    attribute ASYNC_REG of beacon_cnt : variable is "TRUE";
   begin
     tx_event_ena <= tx_event_ena_i;
     tx_event_ena_i <= '1';
@@ -879,7 +888,7 @@ begin
     end if;
   end process;
 
-  fifo_rst <= not link_ok;
+  fifo_rst <= not link_ok_rxusr;
 
   tx_fifo_writing : process (refclk, event_txd)
   begin

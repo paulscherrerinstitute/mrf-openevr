@@ -265,3 +265,6 @@ set_property IOSTANDARD LVCMOS18 [get_ports -of_objects [get_iobanks 13]];
 # set_property IOSTANDARD LVCMOS33 [get_ports -of_objects [get_iobanks 13]];
 
 create_clock -period 7 [get_ports MGTREFCLK1_N]
+create_clock -period 10 [get_ports PL_CLK]
+
+set_false_path -to [get_pins -of_objects [get_cells {sync_link_ok_reg[1]}] -filter {REF_PIN_NAME==D}]

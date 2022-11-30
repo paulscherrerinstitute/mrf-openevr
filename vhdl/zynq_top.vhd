@@ -6,6 +6,9 @@ library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
 entity zynq_top is
+  generic (
+    GEN_ILA_G    : boolean := false
+  );
   port (
     PL_CLK       : in std_logic;
     PL_LED1      : out std_logic;  -- Carrier D6
@@ -33,6 +36,8 @@ entity zynq_top is
 end zynq_top;
 
 architecture structure of zynq_top is
+
+  attribute ASYNC_REG        : string;
 
   component evr_dc is
       generic (
@@ -193,12 +198,6 @@ architecture structure of zynq_top is
   
 begin
 
-  -- ILA debug core
---  i_ila : ila_0
---    port map (
---      CLK => event_clk,
---      probe0 => TRIG0);
-
   i_bufg : bufg
     port map (
       I => PL_CLK,
@@ -325,35 +324,49 @@ begin
     end if;
   end process;
 
- PL_LED2 <= rx_link_ok;
+  PL_LED2 <= rx_link_ok;
 
-  process (event_clk)
+  G_ILA : if ( GEN_ILA_G ) generate
+
   begin
-    if rising_edge(event_clk) then
-      TRIG0(7 downto 0) <= event_rxd;
-      TRIG0(15 downto 8) <= dbus_rxd;
-      TRIG0(23 downto 16) <= databuf_rxd;
-      TRIG0(24) <= databuf_rx_k;
-      TRIG0(25) <= databuf_rx_ena;
-      TRIG0(26) <= databuf_rx_mode;
-      TRIG0(27) <= rx_link_ok;
-      TRIG0(28) <= rx_violation;
-      TRIG0(29) <= rx_clear_viol;
-      TRIG0(30) <= delay_comp_locked;
-      TRIG0(31) <= delay_comp_update;
-      TRIG0(63 downto 32) <= delay_comp_value;
-      TRIG0(95 downto 64) <= delay_comp_target;
-      TRIG0(127 downto 96) <= dc_status;
-      TRIG0(159 downto 128) <= delay_comp_rx_status;
-      TRIG0(191 downto 160) <= topology_addr;
-      TRIG0(255 downto 192) <= (others => '0');
-    end if;
-  end process;
+    -- ILA debug core
+    i_ila : ila_0
+      port map (
+        CLK => event_clk,
+        probe0 => TRIG0);
+
+    process (event_clk)
+    begin
+      if rising_edge(event_clk) then
+        TRIG0(7 downto 0) <= event_rxd;
+        TRIG0(15 downto 8) <= dbus_rxd;
+        TRIG0(23 downto 16) <= databuf_rxd;
+        TRIG0(24) <= databuf_rx_k;
+        TRIG0(25) <= databuf_rx_ena;
+        TRIG0(26) <= databuf_rx_mode;
+        TRIG0(27) <= rx_link_ok;
+        TRIG0(28) <= rx_violation;
+        TRIG0(29) <= rx_clear_viol;
+        TRIG0(30) <= delay_comp_locked;
+        TRIG0(31) <= delay_comp_update;
+        TRIG0(63 downto 32) <= delay_comp_value;
+        TRIG0(95 downto 64) <= delay_comp_target;
+        TRIG0(127 downto 96) <= dc_status;
+        TRIG0(159 downto 128) <= delay_comp_rx_status;
+        TRIG0(191 downto 160) <= topology_addr;
+        TRIG0(255 downto 192) <= (others => '0');
+      end if;
+    end process;
+
+  end generate G_ILA;
 
   process (event_clk, event_rxd)
     variable pulse_cnt : std_logic_vector(19 downto 0) := X"00000";
+    variable sync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     if rising_edge(event_clk) then
+      sync_link_ok := rx_link_ok & sync_link_ok(sync_link_ok'left downto 1);
       PL_LED3 <= pulse_cnt(pulse_cnt'high);
       BANK13_LVDS_8_P <= pulse_cnt(pulse_cnt'high);
       BANK13_LVDS_8_N <= not pulse_cnt(pulse_cnt'high);
@@ -363,7 +376,7 @@ begin
       if event_rxd = X"01" then
 	pulse_cnt := X"FFFFF";
       end if;
-      if rx_link_ok = '0' then
+      if sync_link_ok(0) = '0' then
 	pulse_cnt := X"0000F";
       end if;
     end if;
