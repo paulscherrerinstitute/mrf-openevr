@@ -46,8 +46,10 @@ architecture structure of zynq_top is
     -- System bus clock
     sys_clk         : in std_logic;
     refclk_out      : out std_logic; -- Reference clock output
+    refclk_rst      : out std_logic;
     event_clk_out   : out std_logic; -- Event clock output, delay compensated
 				     -- and locked to EVG
+    event_clk_rst   : out std_logic;
 
     -- Receiver side connections
     event_rxd       : out std_logic_vector(7 downto 0);  -- Received event code
@@ -140,8 +142,10 @@ architecture structure of zynq_top is
   signal sys_clk : std_logic;
   signal sys_reset : std_logic;
 
-  signal refclk  : std_logic;
-  signal event_clk : std_logic;
+  signal refclk          : std_logic;
+  signal refclk_rst      : std_logic;
+  signal event_clk       : std_logic;
+  signal event_clk_rst   : std_logic;
 
   signal dc_mode         : std_logic;
 
@@ -208,7 +212,9 @@ begin
     port map (
       sys_clk => sys_clk,
       refclk_out => refclk,
+      refclk_rst => refclk_rst,
       event_clk_out => event_clk,
+      event_clk_rst => event_clk_rst,
       
       -- Receiver side connections
       event_rxd => event_rxd,
@@ -275,7 +281,7 @@ begin
       ov_flag => databuf_ov_flag,
       clear_flag => databuf_clear_flag,
 
-      reset => sys_reset);
+      reset => event_clk_rst);
 
   gnd <= '0';
   vcc <= '1';

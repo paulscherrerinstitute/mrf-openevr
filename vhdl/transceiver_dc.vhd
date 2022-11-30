@@ -34,8 +34,11 @@ entity transceiver_dc is
     REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
     REFCLK1N        : in std_logic;   -- MGTREFCLK1N
     REFCLK_OUT      : out std_logic;  -- reference clock output
+    REFCLK_RST      : out std_logic;
     recclk_out      : out std_logic;  -- Recovered clock, locked to EVG
+    recclk_rst      : out std_logic;
     event_clk       : in std_logic;   -- event clock input (phase shifted by DCM)
+    event_clk_rst   : in std_logic;   -- event clock input (phase shifted by DCM)
     
     -- Receiver side connections
     event_rxd       : out std_logic_vector(7 downto 0); -- RX event code output
@@ -82,6 +85,17 @@ entity transceiver_dc is
 end transceiver_dc;
 
 architecture structure of transceiver_dc is
+
+  attribute ASYNC_REG         : string;
+
+  signal sync_reset_txusrclk  : std_logic_vector(1 downto 0) := (others => '0');
+  signal sync_reset_rxusrclk  : std_logic_vector(1 downto 0) := (others => '0');
+  signal sync_reset_drpclk    : std_logic_vector(1 downto 0) := (others => '0');
+
+  attribute ASYNC_REG of sync_reset_txusrclk  : signal is "TRUE";
+  attribute ASYNC_REG of sync_reset_rxusrclk  : signal is "TRUE";
+  attribute ASYNC_REG of sync_reset_drpclk    : signal is "TRUE";
+
 
   signal vcc     : std_logic;
   signal gnd     : std_logic;
@@ -237,6 +251,27 @@ architecture structure of transceiver_dc is
 
 begin
 
+  process ( txusrclk ) is
+  begin
+    if ( rising_edge( txusrclk ) ) then
+       sync_reset_txusrclk <= reset & sync_reset_txusrclk(sync_reset_txusrclk'left downto 1);
+    end if;
+  end process;
+
+  process ( rxusrclk ) is
+  begin
+    if ( rising_edge( rxusrclk ) ) then
+       sync_reset_rxusrclk <= reset & sync_reset_rxusrclk(sync_reset_rxusrclk'left downto 1);
+    end if;
+  end process;
+
+  process ( drpclk ) is
+  begin
+    if ( rising_edge( drpclk ) ) then
+       sync_reset_drpclk <= (reset or not TXUSERRDY_in) & sync_reset_drpclk(sync_reset_drpclk'left downto 1);
+    end if;
+  end process;
+
   -- ILA debug core
   i_ila : ila_0
     port map (
@@ -390,7 +425,9 @@ begin
   tied_to_vcc_i                       <= '1';
 
   recclk_out <= rxusrclk;
+  recclk_rst <= sync_reset_rxusrclk(0);
   REFCLK_OUT <= refclk;
+  REFCLK_RST <= sync_reset_txusrclk(0);
   refclk <= txusrclk;
   
   rx_powerdown <= '0';
@@ -435,7 +472,7 @@ begin
     end if;
   end process;
 
-  link_ok_detection : process (refclk, link_ok, reset, rx_error_i)
+  link_ok_detection : process (refclk, link_ok, sync_reset_txusrclk, rx_error_i)
     variable link_ok_delay : std_logic_vector(19 downto 0) := (others => '0');
   begin
     rx_link_ok <= rx_link_ok_i;
@@ -444,7 +481,7 @@ begin
       if link_ok_delay(link_ok_delay'high) = '0' then
         link_ok_delay := link_ok_delay + 1;
       end if;
-      if reset = '1' or link_ok = '0' or rx_error_i = '1' then
+      if sync_reset_txusrclk(0) = '1' or link_ok = '0' or rx_error_i = '1' then
         link_ok_delay := (others => '0');
       end if;
     end if;
@@ -458,7 +495,8 @@ begin
     variable rx_error_sync_1 : std_logic;
     variable loss_lock : std_logic;
     variable rx_error_count : std_logic_vector(5 downto 0);
-    variable reset_sync : std_logic_vector(1 downto 0);
+    variable sync_reset : std_logic_vector(1 downto 0);
+    attribute ASYNC_REG of sync_reset : variable is "TRUE";
   begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
@@ -518,15 +556,15 @@ begin
       rx_error_sync := rx_error_sync_1;
       rx_error_sync_1 := rx_error;
       
-      if reset_sync(0) = '1' then
+      if sync_reset(0) = '1' then
         count := "1111";
       end if;
 
       -- Synchronize asynchronous resets
-      reset_sync(0) := reset_sync(1);
-      reset_sync(1) := '0';
+      sync_reset(0) := sync_reset(1);
+      sync_reset(1) := '0';
       if reset = '1' or CPLLLOCK_out = '0' then
-        reset_sync(1) := '1';
+        sync_reset(1) := '1';
       end if;
     end if;
   end process;
@@ -561,7 +599,7 @@ begin
       even := not even;
       event_rxd <= fifo_do(15 downto 8);
       if rx_link_ok_i = '0' or fifo_dop(1) = '1' or
-	reset = '1' then
+	event_clk_rst = '1' then
 	event_rxd <= (others => '0');
 	even := '0';
       end if;
@@ -571,7 +609,7 @@ begin
   rx_data_align_detect : process (rxusrclk, reset, rx_charisk, rx_data,
 				  rx_clear_viol)
   begin
-    if reset = '1' or rx_clear_viol = '1' then
+    if sync_reset_rxusrclk(0) = '1' or rx_clear_viol = '1' then
       align_error <= '0';
     elsif rising_edge(rxusrclk) then
       align_error <= '0';
@@ -665,19 +703,19 @@ begin
   -- Scalers for clocks for debugging purposes to see which clocks
   -- are running using the ILA core
   
-  process (refclk, reset)
+  process (refclk)
     variable cnt : std_logic_vector(2 downto 0);
   begin
     TRIG0(255) <= cnt(cnt'high);
     if rising_edge(refclk) then
       cnt := cnt + 1;
-      if reset = '1' then
+      if sync_reset_txusrclk(0) = '1' then
         cnt := (others => '0');
       end if;
     end if;
   end process;
   
-  process (sys_clk, reset)
+  process (sys_clk)
     variable cnt : std_logic_vector(2 downto 0);
   begin
     TRIG0(254) <= cnt(cnt'high);
@@ -689,43 +727,43 @@ begin
     end if;
   end process;
   
-  process (event_clk, reset)
+  process (event_clk)
     variable cnt : std_logic_vector(2 downto 0);
   begin
     TRIG0(253) <= cnt(cnt'high);
     if rising_edge(event_clk) then
       cnt := cnt + 1;
-      if reset = '1' then
+      if event_clk_rst = '1' then
         cnt := (others => '0');
       end if;
     end if;
   end process;
   
-  process (rxusrclk, reset)
+  process (rxusrclk)
     variable cnt : std_logic_vector(2 downto 0);
   begin
     TRIG0(252) <= cnt(cnt'high);
     if rising_edge(rxusrclk) then
       cnt := cnt + 1;
-      if reset = '1' then
+      if sync_reset_rxusrclk(0) = '1' then
         cnt := (others => '0');
       end if;
     end if;
   end process;
   
-  process (txusrclk, reset)
+  process (txusrclk)
     variable cnt : std_logic_vector(2 downto 0);
   begin
     TRIG0(251) <= cnt(cnt'high);
     if rising_edge(txusrclk) then
       cnt := cnt + 1;
-      if reset = '1' then
+      if sync_reset_txusrclk(0) = '1' then
         cnt := (others => '0');
       end if;
     end if;
   end process;
   
-  cpll_reset: process (sys_clk, reset)
+  cpll_reset: process (sys_clk)
     variable cnt : std_logic_vector(25 downto 0) := (others => '1');
   begin
     if rising_edge(sys_clk) then
@@ -762,7 +800,7 @@ begin
 
   transmit_data : process (txusrclk, tx_fifo_do, tx_fifo_empty, dbus_txd,
                            databuf_txd, databuf_tx_k, databuf_tx_mode, dc_mode,
-                           reset)
+                           sync_reset_txusrclk)
     variable even       : std_logic_vector(1 downto 0) := "00";
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
@@ -803,7 +841,7 @@ begin
       TRIG0(118) <= even(0);
       even := even + 1;
       beacon_cnt := rx_beacon_i & beacon_cnt(beacon_cnt'high downto 1);
-      if reset = '1' then
+      if sync_reset_txusrclk(0) = '1' then
         fifo_pend := '0';
       end if;
     end if;
@@ -850,9 +888,9 @@ begin
   end process;
   
   tx_fifo_dip <= (others => '0');
-  tx_fifo_rst <= reset;
+  tx_fifo_rst <= sync_reset_txusrclk(0);
   
-  process (drpclk, reset, txbufstatus_i, TXUSERRDY_in)
+  process (drpclk, txbufstatus_i, TXUSERRDY_in)
     type state is (init, init_delay, acq_bufstate, deldec, delinc, locked);
     variable ph_state : state;
     variable phase       : std_logic_vector(6 downto 0);
@@ -872,7 +910,7 @@ begin
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
-            if reset = '0' then
+            if sync_reset_drpclk(0) = '0' then
               ph_state := init_delay;
             end if;
           when init_delay =>
@@ -908,7 +946,7 @@ begin
       else
         cnt := cnt + 1;
       end if;
-      if reset = '1' or TXUSERRDY_in = '0' or useDrpDlyAdj = '0'  then
+      if sync_reset_drpclk(0) = '1' or useDrpDlyAdj = '0'  then
         phase_acc_en <= '0';
         ph_state := init;
         phase := (others => '0');
@@ -917,7 +955,7 @@ begin
     end if;
   end process;
   
-  process (drpclk, phase_acc, phase_acc_en, reset)
+  process (drpclk, phase_acc, phase_acc_en)
     type state is (idle, a64_0, a64_1, a64_2, a9f_0, a9f_1, a9f_2, a9f_3, a9f_4, a9f_5);
     variable drp_state, next_state : state;
     variable rdy_wait : std_logic;
@@ -996,7 +1034,7 @@ begin
         end if;
         drp_state := next_state;
       end if;
-      if reset = '1' then
+      if sync_reset_drpclk(0) = '1' then
         drp_state := idle;
         rdy_wait := '0';
       end if;

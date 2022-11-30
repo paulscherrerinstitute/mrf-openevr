@@ -24,6 +24,7 @@ entity evr_dc is
 
     -- Event clock output, delay compensated
     event_clk_out   : out std_logic;
+    event_clk_rst   : out std_logic;
 				     -- and locked to EVG
 
     -- Receiver side connections (event_clk domain)
@@ -37,6 +38,7 @@ entity evr_dc is
 
     -- Transmitter side connections
     refclk_out      : out std_logic; -- Reference clock output
+    refclk_rst      : out std_logic;
 
     dc_mode         : in std_logic;  -- Delay compensation mode enable (refclk domain)
       
@@ -73,6 +75,8 @@ end evr_dc;
 
 architecture structure of evr_dc is
 
+  attribute ASYNC_REG : string;
+
   component transceiver_dc is
     generic
       (
@@ -90,8 +94,11 @@ architecture structure of evr_dc is
       REFCLK1P        : in std_logic;
       REFCLK1N        : in std_logic;
       REFCLK_OUT      : out std_logic;
+      REFCLK_RST      : out std_logic;
       recclk_out      : out std_logic;
+      recclk_rst      : out std_logic;
       event_clk       : in std_logic;
+      event_clk_rst   : in std_logic;
       
       -- Receiver side connections
       event_rxd       : out std_logic_vector(7 downto 0);
@@ -190,6 +197,8 @@ architecture structure of evr_dc is
   signal vcc     : std_logic;
   
   signal refclk  : std_logic;
+  signal refclk_rst_i    : std_logic;
+  signal evtclk_rst_i    : std_logic;
   signal test_mode       : std_logic;
 
   signal CLKCLN_OUT         : std_logic;
@@ -270,8 +279,11 @@ begin
       REFCLK1P => MGTREFCLK1_P,
       REFCLK1N => MGTREFCLK1_N,
       REFCLK_OUT => refclk,
+      REFCLK_RST => refclk_rst_i,
       recclk_out => up_event_clk,
+      recclk_rst => open,
       event_clk => event_clk,
+      event_clk_rst => evtclk_rst_i,
       
       -- Receiver side connections
       event_rxd => up_event_rxd,
@@ -437,8 +449,20 @@ begin
       I => mmcm_clk0,
       O => event_clk);
 
+  p_evr_dc_sync_evtclk : process ( event_clk )
+  variable sync_reset : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of sync_reset : variable is "TRUE";
+  begin
+    if ( rising_edge( event_clk ) ) then
+       sync_reset := reset & sync_reset(sync_reset'left downto 1);
+    end if;
+    evtclk_rst_i <= sync_reset(0);
+  end process;
+
   refclk_out <= refclk;
+  refclk_rst <= refclk_rst_i;
   event_clk_out <= event_clk;
+  event_clk_rst <= evtclk_rst_i;
   event_rxd <= up_event_rxd;
   dbus_rxd <= up_dbus_rxd;
   databuf_rxd <= up_databuf_rxd;
