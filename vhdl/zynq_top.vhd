@@ -194,10 +194,10 @@ architecture structure of zynq_top is
 begin
 
   -- ILA debug core
-  i_ila : ila_0
-    port map (
-      CLK => event_clk,
-      probe0 => TRIG0);
+--  i_ila : ila_0
+--    port map (
+--      CLK => event_clk,
+--      probe0 => TRIG0);
 
   i_bufg : bufg
     port map (
@@ -319,12 +319,13 @@ begin
       tx_reset <= PL_PB2;
       sys_reset <= PL_PB3;
       PL_LED1 <= rx_violation;
-      PL_LED2 <= rx_link_ok;
 --      PL_LED3 <= event_rxd(0);
       PL_LED4 <= count(25);
       count := count - 1;
     end if;
   end process;
+
+ PL_LED2 <= rx_link_ok;
 
   process (event_clk)
   begin
