@@ -38,6 +38,7 @@
 #    "vhdl/transceiver_gtx_k7.vhd"
 #    "vhdl/zynq_top.vhd"
 #    "vhdl/zynq.xdc"
+#    "vhdl/gtxclk.xdc"
 #    "vhdl/false_paths.xdc"
 #
 #*****************************************************************************************
@@ -235,6 +236,13 @@ set obj [get_filesets constrs_1]
 set file "[file normalize "$origin_dir/vhdl/zynq.xdc"]"
 set file_added [add_files -norecurse -fileset $obj $file]
 set file "$origin_dir/vhdl/zynq.xdc"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
+set_property -name "file_type" -value "XDC" -objects $file_obj
+
+set file "[file normalize "$origin_dir/vhdl/gtxclk.xdc"]"
+set file_added [add_files -norecurse -fileset $obj $file]
+set file "$origin_dir/vhdl/gtxclk.xdc"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
 set_property -name "file_type" -value "XDC" -objects $file_obj
