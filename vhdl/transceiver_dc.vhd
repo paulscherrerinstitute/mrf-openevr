@@ -47,15 +47,15 @@ entity transceiver_dc is
 				     -- enabled for delay compensation mode
     dc_mode         : in std_logic;  -- delay compensation mode enable when '1'
     
-    rx_link_ok      : out   std_logic; -- RX link OK
-    rx_violation    : out   std_logic; -- RX violation detected
-    rx_clear_viol   : in    std_logic; -- Clear RX violation
-    rx_beacon       : out   std_logic; -- Received DC beacon
-    tx_beacon       : out   std_logic; -- Transmitted DC beacon
-    rx_int_beacon   : out   std_logic; -- Received DC beacon after DC FIFO
+    rx_link_ok      : out   std_logic; -- RX link OK (REFCLK (txusrclk) domain)
+    rx_violation    : out   std_logic; -- RX violation detected (sys_clk domain)
+    rx_clear_viol   : in    std_logic; -- Clear RX violation (sys_clk domain)
+    rx_beacon       : out   std_logic; -- Received DC beacon (recclk (rxusrclk) domain)
+    tx_beacon       : out   std_logic; -- Transmitted DC beacon (REFCLK (txusrclk) domain)
+    rx_int_beacon   : out   std_logic; -- Received DC beacon after DC FIFO (event_clk domain)
 
-    delay_inc       : in    std_logic; -- Insert extra event in FIFO
-    delay_dec       : in    std_logic; -- Drop event from FIFO
+    delay_inc       : in    std_logic; -- Insert extra event in FIFO (async)
+    delay_dec       : in    std_logic; -- Drop event from FIFO (async)
                                        -- These two control signals are used
 				       -- only during the initial phase of
 				       -- delay compensation adjustment

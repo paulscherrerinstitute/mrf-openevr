@@ -23,34 +23,35 @@ use work.evr_pkg.all;
 
 entity databuf_rx_dc is
   port (
-    -- Memory buffer RAMB read interface
+    -- Memory buffer RAMB read interface (clk domain)
+    clk               : in std_logic;
     data_out          : out std_logic_vector(31 downto 0);
     size_data_out     : out std_logic_vector(31 downto 0);
     addr_in           : in std_logic_vector(10 downto 2);
-    clk               : in std_logic;
     
-    -- Data stream interface
+    -- Data stream interface (event_clk domain)
+    event_clk         : in std_logic;
     databuf_data      : in std_logic_vector(7 downto 0);
     databuf_k         : in std_logic;
     databuf_ena       : in std_logic;
-    event_clk         : in std_logic;
 
     delay_comp_update : out std_logic;
     delay_comp_rx     : out std_logic_vector(31 downto 0);
     delay_comp_status : out std_logic_vector(31 downto 0);
     topology_addr     : out std_logic_vector(31 downto 0);
 
-    -- Control interface
+    -- Control interface (clk domain)
     irq_out           : out std_logic;
-
     sirq_ena          : in std_logic_vector(0 to 127);
+
+    -- Control interface (event_clk domain)
     rx_flag           : out std_logic_vector(0 to 127);
     cs_flag           : out std_logic_vector(0 to 127);
     ov_flag           : out std_logic_vector(0 to 127);
     clear_flag        : in std_logic_vector(0 to 127);
-
     reset             : in std_logic;
     
+    -- debug (multiple clock domains)
     TRIG0             : out std_logic_vector(255 downto 0)    
     );
 end databuf_rx_dc;

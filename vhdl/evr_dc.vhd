@@ -16,34 +16,40 @@ entity evr_dc is
   port (
     -- System bus clock
     sys_clk         : in std_logic;
-    refclk_out      : out std_logic; -- Reference clock output
-    event_clk_out   : out std_logic; -- Event clock output, delay compensated
+    reset           : in  std_logic; -- Transceiver reset
+
+    -- flags (sys_clk domain)
+    rx_violation    : out   std_logic; -- Receiver violation detected
+    rx_clear_viol   : in    std_logic; -- Clear receiver violatio flag
+
+    -- Event clock output, delay compensated
+    event_clk_out   : out std_logic;
 				     -- and locked to EVG
 
-    -- Receiver side connections
+    -- Receiver side connections (event_clk domain)
     event_rxd       : out std_logic_vector(7 downto 0);  -- Received event code
     dbus_rxd        : out std_logic_vector(7 downto 0);  -- Distributed bus data
     databuf_rxd     : out std_logic_vector(7 downto 0);  -- Databuffer data
     databuf_rx_k    : out std_logic; -- Databuffer K-character
     databuf_rx_ena  : out std_logic; -- Databuf data enable
     databuf_rx_mode : in std_logic;  -- Databuf receive mode, '1' enabled, '0'
-				     -- disabled (only for non-DC)
-    dc_mode         : in std_logic;  -- Delay compensation mode enable
-      
-    rx_link_ok      : out   std_logic; -- Received link ok
-    rx_violation    : out   std_logic; -- Receiver violation detected
-    rx_clear_viol   : in    std_logic; -- Clear receiver violatio flag
-      
+                                     -- disabled (only for non-DC)
+
     -- Transmitter side connections
+    refclk_out      : out std_logic; -- Reference clock output
+
+    dc_mode         : in std_logic;  -- Delay compensation mode enable (refclk domain)
+      
+    -- flags (refclk domain)
+    rx_link_ok      : out   std_logic; -- Received link ok
+
     event_txd       : in  std_logic_vector(7 downto 0); -- TX event code
     dbus_txd        : in  std_logic_vector(7 downto 0); -- TX distributed bus data
     databuf_txd     : in  std_logic_vector(7 downto 0); -- TX databuffer data
     databuf_tx_k    : in  std_logic; -- TX databuffer K-character
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
-				     -- enabled, '0' disabled
-
-    reset           : in  std_logic; -- Transceiver reset
+                                     -- enabled, '0' disabled
 
     -- Delay compensation signals
     delay_comp_update : in std_logic;
