@@ -495,9 +495,12 @@ begin
     variable cnt : std_logic_vector(12 downto 0);
     variable cdcsync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
     attribute ASYNC_REG of cdcsync_link_ok : variable is "TRUE";
+    variable cdcsync_dc_mode : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of cdcsync_dc_mode : variable is "TRUE";
   begin
     if rising_edge(rxusrclk) then
       cdcsync_link_ok  := link_ok & cdcsync_link_ok(cdcsync_link_ok'left downto 1);
+      cdcsync_dc_mode  := dc_mode & cdcsync_dc_mode(cdcsync_dc_mode'left downto 1);
       link_ok_rxusr <= cdcsync_link_ok(0);
       rx_error <= '0';
       if (rx_charisk(0) = '1' and rx_data(7) = '1') or
@@ -511,7 +514,7 @@ begin
         beacon_cnt := "111";
       end if;
       rx_beacon_i <= beacon_cnt(beacon_cnt'high);
-      if dc_mode = '0' then
+      if cdcsync_dc_mode(0) = '0' then
         rx_beacon_i <= cnt(cnt'high);
       end if;
       if cnt(cnt'high) = '1' then
