@@ -101,7 +101,7 @@ begin
 
   G_REF1 : if ( REFCLKSEL /= '0' ) generate
     REFCLK_P <= REFCLK1P;
-    REFCLK_N <= REFCLK_N;
+    REFCLK_N <= REFCLK1N;
   end generate G_REF1;
 
   i_gtp : entity work.gtwizard_gtp_bufbypass
