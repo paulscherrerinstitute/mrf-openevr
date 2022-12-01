@@ -240,6 +240,8 @@ architecture structure of zynq_top is
 
   signal phasdiff    : std_logic_vector(15 downto 0)      := (others => '0');
   signal phasdiffSys : std_logic_vector(15 downto 0)      := (others => '0');
+  signal ophdiff     : std_logic_vector(15 downto 0)      := (others => '0');
+  signal ophdiffSys  : std_logic_vector(15 downto 0)      := (others => '0');
   signal phasdiffTx  : std_logic_vector(15 downto 0);
   signal rx_bufreset : std_logic;
   signal rx_clkEatTgl: std_logic;
@@ -536,7 +538,7 @@ begin
   roRegs(4)    <= usrOut(63 downto 32);
   -- phasdiff doesn't currently work for GTX because it uses REFCLK as TXOUTCLK
   roRegs(5)    <= x"0000" & phasdiffSys;
-  roRegs(6)    <= (others => '0');
+  roRegs(6)    <= x"0000" & ophdiffSys;
 --  roRegs(4)    <= databuf_dc_size_out;
   roRegs(7)    <= int_delay_value;
 
@@ -708,14 +710,18 @@ begin
   end block P_SYNC;
 
   B_PHASM : block is
-    signal reqA, ackA, reqB, ackB : std_logic;
+    signal syncOth : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of syncOth : signal is "TRUE";
+  begin
+
+
+    B_CNT : block is
     signal counter : unsigned(PHASM_LEN_C - 1 downto 0) := (others => '0');
     signal phcount : unsigned(PHASM_LEN_C - 1 downto 0) := (others => '0');
-
     signal syncXOR : std_logic_vector(2 downto 0) := (others => '0');
     attribute ASYNC_REG of syncXOR : signal is "TRUE";
     signal phXOR   : std_logic;
-  begin
+    begin
 
     phXOR <= mgtOb.txoutclk xor mgtOb.txrefclk;
 
@@ -735,6 +741,43 @@ begin
         end if;
       end if;
     end process P_CNT;
+    end block B_CNT;
+
+    B_OTH : block is
+    constant OPHASM_LEN_C : natural := 16;
+    signal counter : unsigned(OPHASM_LEN_C - 1 downto 0) := (others => '0');
+    signal phcount : unsigned(OPHASM_LEN_C - 1 downto 0) := (others => '0');
+    signal syncOth : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of syncOth : signal is "TRUE";
+    signal phOth   : std_logic;
+    begin
+
+    phOth <= mgtOb.txoutclk;
+
+    P_OTH : process ( mgtOb.txrefclk ) is
+    begin
+      if ( rising_edge( mgtOb.txrefclk ) ) then
+        syncOth <= phOth & syncOth(syncOth'left downto 1);
+        counter <= counter + 1;
+        if ( counter = 0 ) then
+          ophdiff(0) <= not ophdiff(0); -- toggle bit to detect new value
+          ophdiff(ophdiff'left downto 1) <= std_logic_vector( phcount(phcount'left downto phcount'left - ophdiff'length + 2) );
+          phcount  <= (others => '0');
+        else
+          if ( syncOth(0) = '1' ) then
+            phcount <= phcount + 1;
+          end if;
+        end if;
+      end if;
+    end process P_OTH;
+    end block B_OTH;
+
+    B_SYN : block is
+      signal reqA, ackA, reqB, ackB : std_logic;
+    begin
+    -- ping-pong
+    reqA <= not ackA;
+    ackB <= reqB;
 
     U_SYNC : entity work.mboxSynchronizer
       generic map (
@@ -753,12 +796,37 @@ begin
          reqB        => reqB,
          ackB        => ackB,
          dinB        => open,
-         douB        => phasDiffSys
+         douB        => phasdiffSys
       );
+    end block B_SYN;
 
+    B_SYN1 : block is
+      signal reqA, ackA, reqB, ackB : std_logic;
+    begin
     -- ping-pong
     reqA <= not ackA;
     ackB <= reqB;
+
+    U_SYNC : entity work.mboxSynchronizer
+      generic map (
+         STAGES_G    => 3,
+         WIDTH_A2B_G => phasdiff'length,
+         WIDTH_B2A_G => 0
+      )
+      port map (
+         clka        => mgtOb.txrefclk,
+         reqA        => reqA,
+         ackA        => ackA,
+         dinA        => ophdiff,
+         douA        => open,
+
+         clkb        => sys_clk,
+         reqB        => reqB,
+         ackB        => ackB,
+         dinB        => open,
+         douB        => ophdiffSys
+      );
+    end block B_SYN1;
 
   end block B_PHASM;
 
