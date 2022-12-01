@@ -89,7 +89,7 @@ architecture structure of transceiver_dc_gt is
   signal pippmStepSize   : std_logic_vector(4 downto 0) := (others => '0');
   signal pippmEn         : std_logic := '0';
 
-  constant WITH_TXBUF_C  : boolean := false;
+  constant WITH_TXBUF_C  : boolean := true;
   constant GEN_PLL_C     : boolean := WITH_TXBUF_C;
 
   signal usrInp          : std_logic_vector(ib.usrInp'range) := (others => '0');
