@@ -24,3 +24,9 @@ git clone https://github.com/jpietari/mrf-openevr
 vivado -mode tcl
 
 %vivado source ./openevr.tcl
+
+For Artix-A7 fabrics with GTP transceivers:
+  - remove 'transceiver_gtx_k7.vhd' and 'gtxclk.xdc' from the project
+  - add 'transceiver_gtp_a7.vhd' instead
+  - use the 'gen_gtp_bufbypass.tcl' script to generate the GTP IP
+    (source the script from the vivado TCL console)
