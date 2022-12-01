@@ -23,8 +23,6 @@
 # 2. The following source(s) files that were local or imported into the original project.
 #    (Please see the '$orig_proj_dir' and '$origin_dir' variable setting below at the start of the script)
 #
-#    "ip/ila_0.xci"
-#
 # 3. The following remote source files that were added to the original project:-
 #
 #    "vhdl/average.vhd"
@@ -121,7 +119,7 @@ set proj_dir [get_property directory [current_project]]
 
 # Set project properties
 set obj [current_project]
-set_property -name "board_part" -value "em.avnet.com:picozed_7030_fmc2:part0:1.1" -objects $obj
+set_property -name "board_part" -value [get_board_parts {em.avnet.com:picozed_7030_fmc2:part0:1.*}] -objects $obj
 set_property -name "default_lib" -value "xil_defaultlib" -objects $obj
 set_property -name "dsa.num_compute_units" -value "60" -objects $obj
 set_property -name "ip_cache_permissions" -value "read write" -objects $obj
@@ -209,17 +207,6 @@ set_property -name "file_type" -value "VHDL" -objects $file_obj
 # Set 'sources_1' fileset properties
 set obj [get_filesets sources_1]
 set_property -name "top" -value "zynq_top" -objects $obj
-
-# Set 'sources_1' fileset object
-set obj [get_filesets sources_1]
-# Add local files from the original project (-no_copy_sources specified)
-set files [list \
- "[file normalize "$origin_dir/ip/ila_0.xci"]"\
-]
-set added_files [add_files -fileset sources_1 $files]
-
-# Set 'sources_1' fileset file properties for remote files
-# None
 
 # Set 'sources_1' fileset file properties for local files
 # None
