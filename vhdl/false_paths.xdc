@@ -9,7 +9,7 @@ set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*p_evr_dc_syn
 
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*beacon_cnt_reg[[]3[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME==D}]
 
-set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/[^/]*sync_.*_reg[[]1[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
+set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.*\<cdcsync_[a-zA-Z0-9_]*_reg[[]1[]]} -filter ASYNC_REG] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
 
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream.*sr_delay_trig_reg[[]2[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
 
