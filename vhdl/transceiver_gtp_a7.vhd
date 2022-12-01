@@ -84,6 +84,9 @@ architecture structure of transceiver_gt is
   signal txusrclk_i         : std_logic;
   signal rxusrclk_i         : std_logic;
 
+  signal txRst_i            : std_logic;
+  signal rxRst_i            : std_logic;
+
 begin
 
   useDrpDlyAdj          <= '0';
@@ -91,6 +94,9 @@ begin
   rxusrclk              <= rxusrclk_i;
   txusrclk              <= txusrclk_i;
   drpclk                <= sys_clk;
+
+  txRst_i               <= (GTTXRESET_in or reset);
+  rxRst_i               <= (GTRXRESET_in or reset);
 
   rx_data(63 downto 16) <= (others => '0');
 
@@ -106,8 +112,8 @@ begin
 
   i_gtp : entity work.gtwizard_gtp_bufbypass
   port map (
-    SOFT_RESET_TX_IN                        => reset,
-    SOFT_RESET_RX_IN                        => reset,
+    SOFT_RESET_TX_IN                        => txRst_i,
+    SOFT_RESET_RX_IN                        => rxRst_i,
     DONT_RESET_ON_DATA_ERROR_IN             => '0',
     Q0_CLK1_GTREFCLK_PAD_N_IN               => REFCLK_N,
     Q0_CLK1_GTREFCLK_PAD_P_IN               => REFCLK_P,
