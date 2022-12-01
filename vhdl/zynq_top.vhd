@@ -7,7 +7,8 @@ use UNISIM.Vcomponents.ALL;
 
 entity zynq_top is
   generic (
-    GEN_ILA_G    : boolean := false
+    MARK_DEBUG_ENABLE : string := "TRUE";
+    GEN_ILA_G         : boolean := false
   );
   port (
     PL_CLK       : in std_logic;
@@ -38,6 +39,7 @@ end zynq_top;
 architecture structure of zynq_top is
 
   attribute ASYNC_REG        : string;
+  attribute MARK_DEBUG       : string;
 
   component evr_dc is
       generic (
@@ -195,6 +197,23 @@ architecture structure of zynq_top is
   signal databuf_irq_dc      : std_logic;
 
   signal topology_addr       : std_logic_vector(31 downto 0);
+
+  attribute MARK_DEBUG of event_rxd: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dbus_rxd: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rxd: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_k: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_ena: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_mode: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_link_ok: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_violation: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_clear_viol: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_locked: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_update: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_value: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_target: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dc_status: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_rx_status: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of topology_addr: signal is MARK_DEBUG_ENABLE;
   
 begin
 

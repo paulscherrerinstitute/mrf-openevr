@@ -22,6 +22,9 @@ use work.evr_pkg.all;
 --use UNISIM.VCOMPONENTS.ALL;
 
 entity databuf_rx_dc is
+  generic (
+    MARK_DEBUG_ENABLE : string := "TRUE"
+  );
   port (
     -- Memory buffer RAMB read interface (clk domain)
     clk               : in std_logic;
@@ -58,12 +61,15 @@ end databuf_rx_dc;
 
 architecture implementation of databuf_rx_dc is
 
+  attribute MARK_DEBUG    : string;
+
   signal rx_addr          : std_logic_vector(10 downto 0);
   signal rx_data          : std_logic_vector(7 downto 0);
   signal seg_addr         : std_logic_vector(9 downto 0);
   signal rx_size          : std_logic_vector(15 downto 0);
   signal wr_size          : std_logic;
-  signal size_data_int    : std_logic_vector(31 downto 0);
+  signal size_data_int_i  : std_logic_vector(31 downto 0);
+  signal size_data_int    : std_logic_vector(15 downto 0);
   
   signal we_A             : std_logic;
   signal delay_comp_cyc   : std_logic_vector(4 downto 0);
@@ -78,6 +84,19 @@ architecture implementation of databuf_rx_dc is
   signal gnd32            : std_logic_vector(31 downto 0);
   signal vcc              : std_logic;
 
+  attribute MARK_DEBUG of databuf_data: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_k: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_ena: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_addr: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_data: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of we_A: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of seg_addr: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_size: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of wr_size: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_cyc: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of addr_in: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of size_data_int: signal is MARK_DEBUG_ENABLE;
+ 
   component buf_bsram IS
     port (
       addra: IN std_logic_VECTOR(10 downto 0);
@@ -363,7 +382,7 @@ begin
       WRITE_WIDTH_A => 18,
       WRITE_WIDTH_B => 18)
     port map (
-      DOADO => size_data_int,
+      DOADO => size_data_int_i,
       DOBDO => open,
       DOPADOP => open,
       DOPBDOP => open,
@@ -408,6 +427,8 @@ begin
       WEBWE(6) => gnd,
       WEBWE(7) => gnd);
 
+  size_data_int <= size_data_int_i(size_data_int'range);
+
   size_data_out(31 downto 16) <= (others => '0');
   size_data_out(15 downto 0) <= size_data_int(15 downto 0);
 
@@ -427,6 +448,18 @@ begin
     variable topology_in    : std_logic_vector(31 downto 0);
     variable segment        : integer range 0 to 127;
     variable clear_flag_i   : std_logic_vector(0 to 127);
+
+    attribute MARK_DEBUG of data_ena : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of address_cycle : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of running : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of address : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of bytecnt : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of addr_decode : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of dc_value_in : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of topology_in : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of rx_checksum : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of checksum : variable is MARK_DEBUG_ENABLE;
+
   begin
     rx_flag <= rx_flag_i;
     cs_flag <= cs_flag_i;
@@ -584,4 +617,3 @@ begin
   TRIG0(255 downto 249) <= (others => '0');
   
 end implementation;
-      

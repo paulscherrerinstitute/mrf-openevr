@@ -37,6 +37,9 @@ use ieee.std_logic_unsigned.all;
 -- resolution of 7 ns / (7*56*64) = 0.28 ps steps
 
 entity delay_adjust is
+  generic (
+    MARK_DEBUG_ENABLE : string := "TRUE"
+  );
   port (
     clk        : in std_logic;
 
@@ -73,6 +76,7 @@ end entity delay_adjust;
 
 architecture struct of delay_adjust is
   attribute ASYNC_REG    : string;
+  attribute MARK_DEBUG   : string;
   
   signal phase_error     : std_logic_vector(31 downto 0);
   signal delay_valid     : std_logic;
@@ -130,6 +134,25 @@ architecture struct of delay_adjust is
       probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
       );
   END COMPONENT;
+
+  attribute MARK_DEBUG of phase_error : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_valid : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_adjust : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_inc : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_fine_adjust : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_reload_err : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of ce : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of state_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of cycle_error_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of link_ok_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of disable : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of adjust_locked_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_dcm_step_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_dcm_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pwm_cnt : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pulse_cnt : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_zero_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pwm_done : signal is MARK_DEBUG_ENABLE;
 
 begin
 

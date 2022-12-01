@@ -23,6 +23,7 @@ use UNISIM.VCOMPONENTS.ALL;
 entity transceiver_dc is
   generic
     (
+      MARK_DEBUG_ENABLE            : string    := "TRUE";
       RX_POLARITY                  : std_logic := '0';
       TX_POLARITY                  : std_logic := '0';
       REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
@@ -87,6 +88,7 @@ end transceiver_dc;
 architecture structure of transceiver_dc is
 
   attribute ASYNC_REG         : string;
+  attribute MARK_DEBUG        : string;
 
   signal sync_reset_txusrclk  : std_logic_vector(1 downto 0) := (others => '0');
   signal sync_reset_rxusrclk  : std_logic_vector(1 downto 0) := (others => '0');
@@ -133,22 +135,26 @@ architecture structure of transceiver_dc is
   signal databuf_rxd_i : std_logic_vector(7 downto 0);
   signal databuf_rx_k_i    : std_logic;
 
-  signal fifo_do       : std_logic_vector(63 downto 0);
-  signal fifo_dop      : std_logic_vector(7 downto 0);
+  signal fifo_do_i     : std_logic_vector(63 downto 0);
+  signal fifo_dop_i    : std_logic_vector(7 downto 0);
+  signal fifo_do       : std_logic_vector(15 downto 0);
+  signal fifo_dop      : std_logic_vector(3 downto 0);
   signal fifo_rden     : std_logic;
   signal fifo_rst      : std_logic;
   signal fifo_wren     : std_logic;
   signal fifo_di       : std_logic_vector(63 downto 0);
   signal fifo_dip      : std_logic_vector(7 downto 0);
 
-  signal tx_fifo_do    : std_logic_vector(31 downto 0);
+  signal tx_fifo_do_i  : std_logic_vector(31 downto 0);
+  signal tx_fifo_do    : std_logic_vector( 7 downto 0);
   signal tx_fifo_dop   : std_logic_vector(3 downto 0);
   signal tx_fifo_rden  : std_logic;
   signal tx_fifo_rderr : std_logic;
   signal tx_fifo_empty : std_logic;
   signal tx_fifo_rst   : std_logic;
   signal tx_fifo_wren  : std_logic;
-  signal tx_fifo_di    : std_logic_vector(31 downto 0);
+  signal tx_fifo_di_i  : std_logic_vector(31 downto 0);
+  signal tx_fifo_di    : std_logic_vector( 7 downto 0);
   signal tx_fifo_dip   : std_logic_vector(3 downto 0);
 
   signal tx_event_ena_i : std_logic;
@@ -182,6 +188,39 @@ architecture structure of transceiver_dc is
   signal RXRESETDONE_out : std_logic;
   signal RXUSERRDY_in : std_logic;
   signal TXUSERRDY_in : std_logic;
+
+  attribute MARK_DEBUG of rx_data : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_charisk : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_disperr : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_notintable : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of link_ok : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of CPLLRESET_in : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of GTTXRESET_in : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of TXUSERRDY_in : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of GTRXRESET_in : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of RXUSERRDY_in : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_data : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_charisk : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_error : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rxcdrreset : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of align_error : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rxd_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_k_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of RXCDRLOCK_out : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of RXRESETDONE_out : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_tx_mode : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_tx_k : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_txd : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of fifo_do : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of fifo_dop : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of fifo_rden : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_fifo_do : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_fifo_di : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_fifo_wren : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_fifo_rden : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_fifo_empty : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of tx_event_ena_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_error_i : signal is MARK_DEBUG_ENABLE;
 
   COMPONENT ila_0
     PORT (
@@ -359,8 +398,8 @@ begin
       SIM_DEVICE => "7SERIES",
       SRVAL => X"000000000")
     port map (
-      DO => fifo_do,
-      DOP => fifo_dop,
+      DO => fifo_do_i,
+      DOP => fifo_dop_i,
       ECCPARITY => open,
       ALMOSTEMPTY => open,
       ALMOSTFULL => open,
@@ -383,6 +422,9 @@ begin
       DIP => fifo_dip,
       INJECTDBITERR => gnd,
       INJECTSBITERR => gnd);
+
+  fifo_do  <= fifo_do_i(fifo_do'range);
+  fifo_dop <= fifo_dop_i(fifo_dop'range);
   
   i_txfifo : FIFO18E1
     generic map (
@@ -397,7 +439,7 @@ begin
       SIM_DEVICE => "7SERIES",
       SRVAL => X"000000000")
     port map (
-      DO => tx_fifo_do,
+      DO => tx_fifo_do_i,
       DOP => tx_fifo_dop,
       ALMOSTEMPTY => open,
       ALMOSTFULL => open,
@@ -414,8 +456,11 @@ begin
       RSTREG => gnd,
       WRCLK => refclk,
       WREN => tx_fifo_wren,
-      DI => tx_fifo_di,
+      DI => tx_fifo_di_i,
       DIP => tx_fifo_dip);
+
+  tx_fifo_do  <= tx_fifo_do_i(tx_fifo_do'range);
+  tx_fifo_di  <= tx_fifo_di_i(tx_fifo_di'range);
   
   vcc <= '1';
   gnd <= '0';
@@ -501,6 +546,10 @@ begin
     variable sync_reset : std_logic_vector(1 downto 0);
     attribute ASYNC_REG of sync_reset : variable is "TRUE";
     attribute ASYNC_REG of sync_rx_error : variable is "TRUE";
+    attribute MARK_DEBUG of rx_error_count : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of loss_lock      : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of prescaler      : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of count          : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
@@ -700,6 +749,7 @@ begin
 
   process (rxusrclk)
     variable toggle : std_logic := '0';
+    attribute MARK_DEBUG of toggle : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(169) <= toggle;
     if rising_edge(rxusrclk) then
@@ -715,8 +765,11 @@ begin
   
   process (refclk)
     variable cnt : std_logic_vector(2 downto 0);
+    variable cntHi : std_logic;
+    attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(255) <= cnt(cnt'high);
+    cntHi := cnt(cnt'high);
     if rising_edge(refclk) then
       cnt := cnt + 1;
       if sync_reset_txusrclk(0) = '1' then
@@ -727,8 +780,11 @@ begin
   
   process (sys_clk)
     variable cnt : std_logic_vector(2 downto 0);
+    variable cntHi : std_logic;
+    attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(254) <= cnt(cnt'high);
+    cntHi := cnt(cnt'high);
     if rising_edge(sys_clk) then
       cnt := cnt + 1;
       if reset = '1' then
@@ -739,8 +795,11 @@ begin
   
   process (event_clk)
     variable cnt : std_logic_vector(2 downto 0);
+    variable cntHi : std_logic;
+    attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(253) <= cnt(cnt'high);
+    cntHi := cnt(cnt'high);
     if rising_edge(event_clk) then
       cnt := cnt + 1;
       if event_clk_rst = '1' then
@@ -751,8 +810,11 @@ begin
   
   process (rxusrclk)
     variable cnt : std_logic_vector(2 downto 0);
+    variable cntHi : std_logic;
+    attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(252) <= cnt(cnt'high);
+    cntHi := cnt(cnt'high);
     if rising_edge(rxusrclk) then
       cnt := cnt + 1;
       if sync_reset_rxusrclk(0) = '1' then
@@ -763,8 +825,11 @@ begin
   
   process (txusrclk)
     variable cnt : std_logic_vector(2 downto 0);
+    variable cntHi : std_logic;
+    attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
     TRIG0(251) <= cnt(cnt'high);
+    cntHi := cnt(cnt'high);
     if rising_edge(txusrclk) then
       cnt := cnt + 1;
       if sync_reset_txusrclk(0) = '1' then
@@ -815,6 +880,8 @@ begin
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
     attribute ASYNC_REG of beacon_cnt : variable is "TRUE";
+    variable even0      : std_logic;
+    attribute MARK_DEBUG of even0 : variable is MARK_DEBUG_ENABLE;
   begin
     tx_event_ena <= tx_event_ena_i;
     tx_event_ena_i <= '1';
@@ -850,6 +917,7 @@ begin
       end if;
       databuf_tx_ena <= even(0);
       TRIG0(118) <= even(0);
+      even0 := even(0);
       even := even + 1;
       beacon_cnt := rx_beacon_i & beacon_cnt(beacon_cnt'high downto 1);
       if sync_reset_txusrclk(0) = '1' then
@@ -892,8 +960,8 @@ begin
 
   tx_fifo_writing : process (refclk, event_txd)
   begin
-    tx_fifo_di <= (others => '0');
-    tx_fifo_di(7 downto 0) <= event_txd;
+    tx_fifo_di_i <= (others => '0');
+    tx_fifo_di_i(7 downto 0) <= event_txd;
     tx_fifo_wren <= '0';
     if event_txd /= X"00" then
       tx_fifo_wren <= '1';
