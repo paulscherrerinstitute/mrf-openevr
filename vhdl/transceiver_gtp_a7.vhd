@@ -78,6 +78,7 @@ entity transceiver_gt is
 end transceiver_gt;
 
 architecture structure of transceiver_gt is
+  attribute ASYNC_REG       : string;
 
   signal REFCLK_P, REFCLK_N : std_logic;
 
@@ -87,6 +88,11 @@ architecture structure of transceiver_gt is
   signal txRst_i            : std_logic;
   signal rxRst_i            : std_logic;
 
+  signal cdcsync_txrst      : std_logic_vector(1 downto 0) := (others => '1');
+  attribute ASYNC_REG       of cdcsync_txrst : signal is "TRUE";
+  signal cdcsync_rxrst      : std_logic_vector(1 downto 0) := (others => '1');
+  attribute ASYNC_REG       of cdcsync_rxrst : signal is "TRUE";
+
 begin
 
   useDrpDlyAdj          <= '0';
@@ -95,8 +101,16 @@ begin
   txusrclk              <= txusrclk_i;
   drpclk                <= sys_clk;
 
-  txRst_i               <= (GTTXRESET_in or reset);
-  rxRst_i               <= (GTRXRESET_in or reset);
+  P_RST : process ( sys_clk ) is
+  begin
+    if ( rising_edge( sys_clk ) ) then
+      cdcsync_txrst <= GTTXRESET_in & cdcsync_txrst(cdcsync_txrst'left downto 1);
+      cdcsync_rxrst <= GTRXRESET_in & cdcsync_rxrst(cdcsync_rxrst'left downto 1);
+    end if;
+  end process P_RST;
+
+  txRst_i               <= (cdcsync_txrst(0) or reset);
+  rxRst_i               <= (cdcsync_rxrst(0) or reset);
 
   rx_data(63 downto 16) <= (others => '0');
 
