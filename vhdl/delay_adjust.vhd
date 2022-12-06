@@ -37,6 +37,9 @@ use ieee.std_logic_unsigned.all;
 -- resolution of 7 ns / (7*56*64) = 0.28 ps steps
 
 entity delay_adjust is
+  generic (
+    MARK_DEBUG_ENABLE : string := "FALSE"
+  );
   port (
     clk        : in std_logic;
 
@@ -72,6 +75,8 @@ entity delay_adjust is
 end entity delay_adjust;
 
 architecture struct of delay_adjust is
+  attribute ASYNC_REG    : string;
+  attribute MARK_DEBUG   : string;
   
   signal phase_error     : std_logic_vector(31 downto 0);
   signal delay_valid     : std_logic;
@@ -85,7 +90,7 @@ architecture struct of delay_adjust is
   
   signal ce              : std_logic;
 
-  signal state_i         : std_logic_vector(2 downto 0);
+  signal state_i         : std_logic_vector(1 downto 0);
   signal cycle_error_i   : std_logic_vector(15 downto 0);
   signal cnt_i           : std_logic_vector(4 downto 0);
   signal long_delay_i    : std_logic_vector(31 downto 0);
@@ -93,6 +98,7 @@ architecture struct of delay_adjust is
   signal fe_dec_i        : std_logic_vector(17 downto 0);
   signal dcm_adjust_frac : std_logic_vector(17 downto 0);
   signal adjust_locked_i : std_logic;
+  signal link_ok_i       : std_logic;
 
   signal dcm_update      : std_logic := '0';
   signal dcm_step_change : std_logic_vector(2 downto 0) := "000";
@@ -120,21 +126,26 @@ architecture struct of delay_adjust is
   signal swallow_inc_i : std_logic;
   signal swallow_dec_i : std_logic;
   
-  signal TRIG0 : std_logic_vector(255 downto 0);
-
-  COMPONENT ila_0
-    PORT (
-      clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
-      );
-  END COMPONENT;
+  attribute MARK_DEBUG of phase_error : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_valid : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_adjust : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_inc : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_fine_adjust : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of dcm_reload_err : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of ce : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of state_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of cycle_error_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of link_ok_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of disable : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of adjust_locked_i : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_dcm_step_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_dcm_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pwm_cnt : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pulse_cnt : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_zero_phase : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of s_pwm_done : signal is MARK_DEBUG_ENABLE;
 
 begin
-
---  i_ila : ila_0
---    port map (
---      CLK => clk,
---      probe0 => TRIG0);
 
   dc_status(31 downto 4) <= (others => '0');
   dc_status(3) <= delay_too_long;
@@ -146,9 +157,12 @@ begin
            int_delay_value, int_delay_update, int_delay_init, dc_mode)
     variable sync_dc_value  : std_logic_vector(31 downto 0) := X"00000000";
     variable sync_id_value  : std_logic_vector(31 downto 0) := X"00000000";
-    variable sync_dc_update : std_logic_vector(1 downto 0) := "00";
-    variable sync_id_update : std_logic_vector(1 downto 0) := "00";
-    variable sync_init      : std_logic_vector(1 downto 0) := "00";
+    variable sync_dc_update : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_dc_update : variable is "TRUE";
+    variable sync_id_update : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_id_update : variable is "TRUE";
+    variable sync_init      : std_logic_vector(2 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_init      : variable is "TRUE";
     variable sync_dc_id     : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_short    : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_long     : std_logic_vector(31 downto 0) := X"00000000";
@@ -169,9 +183,9 @@ begin
         sync_dc_value := (others => '0');
       end if;
       sync_dc_id := sync_dc_value + sync_id_value;
-      sync_dc_update := sync_dc_update(0) & delay_comp_update;
-      sync_id_update := sync_id_update(0) & int_delay_update;
-      sync_init := sync_init(0) & int_delay_init;
+      sync_dc_update := sync_dc_update(sync_dc_update'high - 1 downto 0) & delay_comp_update;
+      sync_id_update := sync_id_update(sync_id_update'high - 1 downto 0) & int_delay_update;
+      sync_init := sync_init(sync_init'high - 1 downto 0) & int_delay_init;
 
       
       delay_too_short <= '0';
@@ -188,7 +202,7 @@ begin
   end process;
 
   cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback) 
-    variable state            : std_logic_vector(2 downto 0) := "000";
+    variable state            : std_logic_vector(1 downto 0) := "00";
     variable cycle_error      : std_logic_vector(15 downto 0);
     variable cnt              : std_logic_vector(4 downto 0) := "00000";
     variable long_delay       : std_logic_vector(31 downto 0);
@@ -199,6 +213,8 @@ begin
     variable dcm_step         : std_logic_vector(17 downto 0) := "00" & X"00A7";
     variable updt_delay_sr    : std_logic_vector(2 downto 0) := "000";
     variable delay_value_updt : std_logic;
+    variable sync_link_ok     : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     state_i <= state;
     cycle_error_i <= cycle_error;
@@ -208,6 +224,7 @@ begin
     fe_dec_i <= fe_dec;
     dcm_adjust_frac <= fraction_error;
     adjust_locked <= adjust_locked_i;
+    link_ok_i <= sync_link_ok(0);
     
     if rising_edge(clk) then
       delay_value_updt := '0';
@@ -255,14 +272,14 @@ begin
         end if;
         
         case state is
-          when "000" =>
+          when "00" =>
             if delay_value_updt = '1' then
-              state := "001";
+              state := "01";
             end if;
-          when "001" =>
+          when "01" =>
             if cnt(cnt'high) = '1' then
               if fe_inc(fe_inc'high) = '0' and fe_dec(fe_dec'high) = '1' then
-                state := "011";
+                state := "11";
               else
                 dcm_fine_adjust <= '0';
               end if;
@@ -285,7 +302,7 @@ begin
               dcm_reload_err <= '1';
               dcm_fine_adjust <= '1';
               if fe_inc(fe_inc'high) = '1' or fe_dec(fe_dec'high) = '0' then
-                state := "000";
+                state := "00";
               end if;
             end if;
           when others =>
@@ -296,8 +313,8 @@ begin
         delay_inc <= '0';
         delay_dec <= '0';
       end if;
-      if link_ok = '0' then
-        state := "000";
+      if sync_link_ok(0) = '0' then
+        state := "00";
         dcm_fine_adjust <= '0';
         dcm_reload_err <= '0';
         adjust_locked_i <= '0';
@@ -306,6 +323,7 @@ begin
         cnt(cnt'high) := '0';
       end if;
       cnt := cnt + 1;
+      sync_link_ok := link_ok & sync_link_ok(sync_link_ok'left downto 1);
     end if;
   end process;
   
@@ -320,6 +338,9 @@ begin
     variable psinc          : std_logic;
     variable psdec          : std_logic;
     variable dcm_updt_sr    : std_logic_vector(2 downto 0);
+    attribute ASYNC_REG of dcm_updt_sr : variable is "TRUE";
+    variable sync_link_ok   : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     if rising_edge(psclk) then
       psinc := '0';
@@ -399,7 +420,7 @@ begin
         end if;
       end if;
       dcm_updt_sr := dcm_updt_sr(1 downto 0) & dcm_update;
-      if link_ok = '0' then
+      if sync_link_ok(0) = '0' then
         dcm_phase := (others => '0');
         pwm_cnt := (others => '1');
         pwm_cnt(pwm_cnt'high) := '0';
@@ -407,6 +428,7 @@ begin
         zero_phase := '1';
         pwm_done := '0';
       end if;
+      sync_link_ok := link_ok & sync_link_ok(sync_link_ok'left downto 1);
     end if;
 
     s_dcm_step_phase <= dcm_step_phase;
@@ -417,29 +439,5 @@ begin
     s_pwm_done <= pwm_done;
 
   end process;
-
-  TRIG0(31 downto 0) <= phase_error;
-  TRIG0(32) <= delay_valid;
-  TRIG0(33) <= '0';
-  TRIG0(34) <= '0';
-  TRIG0(35) <= dcm_adjust;
-  TRIG0(36) <= dcm_inc;
-  TRIG0(37) <= dcm_fine_adjust;
-  TRIG0(38) <= dcm_reload_err;
-  TRIG0(39) <= ce;
-  TRIG0(42 downto 40) <= state_i;
-  TRIG0(61 downto 46) <= cycle_error_i;
-  TRIG0(43) <= link_ok;
-  TRIG0(44) <= disable;
-  TRIG0(45) <= adjust_locked_i;
-  TRIG0(127 downto 62) <= (others => '0');
-  TRIG0(255 downto 162) <= (others => '0');
-
-  TRIG0(131 downto 128) <= s_dcm_step_phase;
-  TRIG0(137 downto 132) <= s_dcm_phase;
-  TRIG0(148 downto 138) <= s_pwm_cnt;
-  TRIG0(159 downto 149) <= s_pulse_cnt;
-  TRIG0(160) <= s_zero_phase;
-  TRIG0(161) <= s_pwm_done;
 
 end struct;
