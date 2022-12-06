@@ -38,7 +38,7 @@ use ieee.std_logic_unsigned.all;
 
 entity delay_adjust is
   generic (
-    MARK_DEBUG_ENABLE : string := "TRUE"
+    MARK_DEBUG_ENABLE : string := "FALSE"
   );
   port (
     clk        : in std_logic;

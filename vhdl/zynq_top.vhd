@@ -7,8 +7,10 @@ use UNISIM.Vcomponents.ALL;
 
 entity zynq_top is
   generic (
-    MARK_DEBUG_ENABLE : string := "TRUE";
-    GEN_ILA_G         : boolean := false
+    MARK_DEBUG_TOP_ENABLE : string := "TRUE";
+    MARK_DEBUG_EVR_ENABLE : string := "TRUE";
+    MARK_DEBUG_BUF_ENABLE : string := "FALSE";
+    GEN_ILA_G             : boolean := false
   );
   port (
     PL_CLK       : in std_logic;
@@ -43,6 +45,7 @@ architecture structure of zynq_top is
 
   component evr_dc is
       generic (
+    MARK_DEBUG_ENABLE            : string    := "FALSE";
     -- MGT RX&TX signal pair polarity
     RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
     TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
@@ -104,6 +107,9 @@ architecture structure of zynq_top is
   end component;
 
   component databuf_rx_dc is
+    generic (
+      MARK_DEBUG_ENABLE : string    := "FALSE"
+    );
     port (
       -- Memory buffer RAMB read interface
       data_out          : out std_logic_vector(31 downto 0);
@@ -198,22 +204,22 @@ architecture structure of zynq_top is
 
   signal topology_addr       : std_logic_vector(31 downto 0);
 
-  attribute MARK_DEBUG of event_rxd: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of dbus_rxd: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_rxd: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_rx_k: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_rx_ena: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_rx_mode: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of rx_link_ok: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of rx_violation: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of rx_clear_viol: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of delay_comp_locked: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of delay_comp_update: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of delay_comp_value: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of delay_comp_target: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of dc_status: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of delay_comp_rx_status: signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of topology_addr: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of event_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of dbus_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_k: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_ena: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_mode: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_link_ok: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_violation: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_clear_viol: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_locked: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_update: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_value: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_target: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of dc_status: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_rx_status: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of topology_addr: signal is MARK_DEBUG_TOP_ENABLE;
   
 begin
 
@@ -224,6 +230,7 @@ begin
 
   i_evr_dc : evr_dc
     generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_EVR_ENABLE,
       RX_POLARITY => '0',
       TX_POLARITY => '0',
       refclksel => '1')
@@ -275,6 +282,9 @@ begin
       MGTTX2_P => MGTTX2_P);
 
   i_databuf_dc : databuf_rx_dc
+    generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_BUF_ENABLE
+    )
     port map (
       data_out => databuf_dc_data_out,
       size_data_out => databuf_dc_size_out,

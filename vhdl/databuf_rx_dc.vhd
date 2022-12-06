@@ -23,7 +23,7 @@ use work.evr_pkg.all;
 
 entity databuf_rx_dc is
   generic (
-    MARK_DEBUG_ENABLE : string := "TRUE"
+    MARK_DEBUG_ENABLE : string := "FALSE"
   );
   port (
     -- Memory buffer RAMB read interface (clk domain)

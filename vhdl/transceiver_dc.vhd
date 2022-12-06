@@ -23,7 +23,7 @@ use UNISIM.VCOMPONENTS.ALL;
 entity transceiver_dc is
   generic
     (
-      MARK_DEBUG_ENABLE            : string    := "TRUE";
+      MARK_DEBUG_ENABLE            : string    := "FALSE";
       RX_POLARITY                  : std_logic := '0';
       TX_POLARITY                  : std_logic := '0';
       REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1

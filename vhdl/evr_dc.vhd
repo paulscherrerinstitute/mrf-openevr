@@ -7,6 +7,7 @@ use UNISIM.Vcomponents.ALL;
 
 entity evr_dc is
   generic (
+    MARK_DEBUG_ENABLE            : string    := "FALSE";
     -- MGT RX&TX signal pair polarity
     RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
     TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
@@ -80,6 +81,7 @@ architecture structure of evr_dc is
   component transceiver_dc is
     generic
       (
+        MARK_DEBUG_ENABLE            : string    := "FALSE";
         RX_POLARITY                  : std_logic := '0';
         TX_POLARITY                  : std_logic := '0';
         REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
@@ -157,6 +159,9 @@ architecture structure of evr_dc is
   end component;
 
   component delay_adjust is
+    generic (
+      MARK_DEBUG_ENABLE            : string    := "FALSE"
+    );
     port (
       clk        : in std_logic;
       
@@ -266,6 +271,7 @@ begin
 
   i_upstream : transceiver_dc
     generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_ENABLE,
       RX_POLARITY => '0',
       TX_POLARITY => '0',
       refclksel => '1')
@@ -331,6 +337,9 @@ begin
       init_done => int_delay_init);  
 
   int_dly_adj : delay_adjust
+    generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_ENABLE
+    )
     port map (
       clk        => sys_clk,
       psclk      => refclk, -- mmcm_psclk,
