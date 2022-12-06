@@ -189,7 +189,6 @@ architecture structure of zynq_top is
   signal delay_comp_value   : std_logic_vector(31 downto 0);
   signal delay_comp_target  : std_logic_vector(31 downto 0);
 
-  signal dc_status             : std_logic_vector(31 downto 0);
   signal delay_comp_rx_status : std_logic_vector(31 downto 0);
 
   signal databuf_dc_addr     : std_logic_vector(10 downto 2);
@@ -217,7 +216,6 @@ architecture structure of zynq_top is
   attribute MARK_DEBUG of delay_comp_update: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of delay_comp_value: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of delay_comp_target: signal is MARK_DEBUG_TOP_ENABLE;
-  attribute MARK_DEBUG of dc_status: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of delay_comp_rx_status: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of topology_addr: signal is MARK_DEBUG_TOP_ENABLE;
   
@@ -380,7 +378,7 @@ begin
 --        TRIG0(31) <= delay_comp_update;
 --        TRIG0(63 downto 32) <= delay_comp_value;
 --        TRIG0(95 downto 64) <= delay_comp_target;
---        TRIG0(127 downto 96) <= dc_status;
+--        TRIG0(127 downto 96) <= (others => '0');
 --        TRIG0(159 downto 128) <= delay_comp_rx_status;
 --        TRIG0(191 downto 160) <= topology_addr;
 --        TRIG0(255 downto 192) <= (others => '0');
