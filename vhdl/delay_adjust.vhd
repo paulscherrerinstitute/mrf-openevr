@@ -126,15 +126,6 @@ architecture struct of delay_adjust is
   signal swallow_inc_i : std_logic;
   signal swallow_dec_i : std_logic;
   
-  signal TRIG0 : std_logic_vector(255 downto 0);
-
-  COMPONENT ila_0
-    PORT (
-      clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
-      );
-  END COMPONENT;
-
   attribute MARK_DEBUG of phase_error : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of delay_valid : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of dcm_adjust : signal is MARK_DEBUG_ENABLE;
@@ -155,11 +146,6 @@ architecture struct of delay_adjust is
   attribute MARK_DEBUG of s_pwm_done : signal is MARK_DEBUG_ENABLE;
 
 begin
-
---  i_ila : ila_0
---    port map (
---      CLK => clk,
---      probe0 => TRIG0);
 
   dc_status(31 downto 4) <= (others => '0');
   dc_status(3) <= delay_too_long;
@@ -453,30 +439,5 @@ begin
     s_pwm_done <= pwm_done;
 
   end process;
-
-  TRIG0(31 downto 0) <= phase_error;
-  TRIG0(32) <= delay_valid;
-  TRIG0(33) <= '0';
-  TRIG0(34) <= '0';
-  TRIG0(35) <= dcm_adjust;
-  TRIG0(36) <= dcm_inc;
-  TRIG0(37) <= dcm_fine_adjust;
-  TRIG0(38) <= dcm_reload_err;
-  TRIG0(39) <= ce;
-  TRIG0(41 downto 40) <= state_i;
-  TRIG0(42) <= '0';
-  TRIG0(61 downto 46) <= cycle_error_i;
-  TRIG0(43) <= link_ok_i;
-  TRIG0(44) <= disable;
-  TRIG0(45) <= adjust_locked_i;
-  TRIG0(127 downto 62) <= (others => '0');
-  TRIG0(255 downto 162) <= (others => '0');
-
-  TRIG0(131 downto 128) <= s_dcm_step_phase;
-  TRIG0(137 downto 132) <= s_dcm_phase;
-  TRIG0(148 downto 138) <= s_pwm_cnt;
-  TRIG0(159 downto 149) <= s_pulse_cnt;
-  TRIG0(160) <= s_zero_phase;
-  TRIG0(161) <= s_pwm_done;
 
 end struct;

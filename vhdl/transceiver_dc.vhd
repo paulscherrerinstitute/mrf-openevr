@@ -178,8 +178,6 @@ architecture structure of transceiver_dc is
   signal drpbsy  : std_logic;
   signal useDrpDlyAdj : std_logic;
 
-  signal TRIG0 : std_logic_vector(255 downto 0);
-  
   signal CPLLRESET_in : std_logic;
   signal CPLLLOCK_out : std_logic;
   signal GTRXRESET_in : std_logic;
@@ -221,13 +219,6 @@ architecture structure of transceiver_dc is
   attribute MARK_DEBUG of tx_fifo_empty : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of tx_event_ena_i : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of rx_error_i : signal is MARK_DEBUG_ENABLE;
-
-  COMPONENT ila_0
-    PORT (
-      clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
-      );
-  END COMPONENT;
 
   component transceiver_gt is
     generic
@@ -310,12 +301,6 @@ begin
        cdcsync_reset_drpclk <= (reset or not TXUSERRDY_in) & cdcsync_reset_drpclk(cdcsync_reset_drpclk'left downto 1);
     end if;
   end process;
-
-  -- ILA debug core
---  i_ila : ila_0
---    port map (
---      CLK => txusrclk,
---      probe0 => TRIG0);
 
   gt_i : transceiver_gt
     generic map
@@ -554,11 +539,6 @@ begin
     attribute MARK_DEBUG of prescaler      : variable is MARK_DEBUG_ENABLE;
     attribute MARK_DEBUG of count          : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(58 downto 53) <= rx_error_count;
-    TRIG0(59) <= loss_lock;
-    TRIG0(60) <= cdcsync_rx_error(0);
-    TRIG0(75 downto 61) <= prescaler;
-    TRIG0(79 downto 76) <= count;
     
     if rising_edge(refclk) then
       rxcdrreset <= '0';
@@ -711,50 +691,10 @@ begin
     end if;
   end process;
 
-  TRIG0(15 downto 0) <= rx_data;
-  TRIG0(17 downto 16) <= rx_charisk;
-  TRIG0(19 downto 18) <= rx_disperr;
-  TRIG0(21 downto 20) <= "00";
-  TRIG0(23 downto 22) <= rx_notintable;
-  TRIG0(24) <= link_ok;
-  TRIG0(25) <= CPLLRESET_in;
-  TRIG0(26) <= GTTXRESET_in;
-  TRIG0(27) <= TXUSERRDY_in;
-  TRIG0(28) <= GTRXRESET_in;
-  TRIG0(29) <= RXUSERRDY_in;
-  TRIG0(30) <= '0';
-  TRIG0(31) <= '0';
-  TRIG0(47 downto 32) <= tx_data;
-  TRIG0(49 downto 48) <= tx_charisk;
-  TRIG0(50) <= rx_error;
-  TRIG0(51) <= rxcdrreset;
-  TRIG0(52) <= align_error;
-  TRIG0(87 downto 80) <= databuf_rxd_i;
-  TRIG0(88) <= databuf_rx_k_i;
-  TRIG0(89) <= RXCDRLOCK_out;
-  TRIG0(90) <= '0';
-  TRIG0(91) <= '0';
-  TRIG0(92) <= RXRESETDONE_out;
-  TRIG0(116 downto 93) <= (others => '0');
-  TRIG0(117) <= databuf_tx_mode;
-  TRIG0(119) <= databuf_tx_k;
-  TRIG0(127 downto 120) <= databuf_txd;
-  TRIG0(143 downto 128) <= fifo_do(15 downto 0);
-  TRIG0(147 downto 144) <= fifo_dop(3 downto 0);
-  TRIG0(148) <= fifo_rden;
-  TRIG0(156 downto 149) <= tx_fifo_do(7 downto 0);
-  TRIG0(164 downto 157) <= tx_fifo_di(7 downto 0);
-  TRIG0(165) <= tx_fifo_wren;
-  TRIG0(166) <= tx_fifo_rden;
-  TRIG0(167) <= tx_fifo_empty;
-  TRIG0(168) <= tx_event_ena_i;
-  TRIG0(250 downto 170) <= (others => '0');
-
   process (rxusrclk)
     variable toggle : std_logic := '0';
     attribute MARK_DEBUG of toggle : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(169) <= toggle;
     if rising_edge(rxusrclk) then
       toggle := not toggle;
     end if;
@@ -771,7 +711,6 @@ begin
     variable cntHi : std_logic;
     attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(255) <= cnt(cnt'high);
     cntHi := cnt(cnt'high);
     if rising_edge(refclk) then
       cnt := cnt + 1;
@@ -786,7 +725,6 @@ begin
     variable cntHi : std_logic;
     attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(254) <= cnt(cnt'high);
     cntHi := cnt(cnt'high);
     if rising_edge(sys_clk) then
       cnt := cnt + 1;
@@ -801,7 +739,6 @@ begin
     variable cntHi : std_logic;
     attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(253) <= cnt(cnt'high);
     cntHi := cnt(cnt'high);
     if rising_edge(event_clk) then
       cnt := cnt + 1;
@@ -816,7 +753,6 @@ begin
     variable cntHi : std_logic;
     attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(252) <= cnt(cnt'high);
     cntHi := cnt(cnt'high);
     if rising_edge(rxusrclk) then
       cnt := cnt + 1;
@@ -831,7 +767,6 @@ begin
     variable cntHi : std_logic;
     attribute MARK_DEBUG of cntHi : variable is MARK_DEBUG_ENABLE;
   begin
-    TRIG0(251) <= cnt(cnt'high);
     cntHi := cnt(cnt'high);
     if rising_edge(txusrclk) then
       cnt := cnt + 1;
@@ -919,7 +854,6 @@ begin
 	tx_charisk(0) <= databuf_tx_k;
       end if;
       databuf_tx_ena <= even(0);
-      TRIG0(118) <= even(0);
       even0 := even(0);
       even := even + 1;
       beacon_cnt := rx_beacon_i & beacon_cnt(beacon_cnt'high downto 1);
