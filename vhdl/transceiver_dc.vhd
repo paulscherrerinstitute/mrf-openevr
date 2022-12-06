@@ -499,14 +499,11 @@ begin
     variable prescaler : std_logic_vector(14 downto 0);
     variable count : std_logic_vector(3 downto 0);
     variable cdcsync_rx_error : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of cdcsync_rx_error : variable is "TRUE";
     variable loss_lock : std_logic;
     variable rx_error_count : std_logic_vector(5 downto 0);
-    variable sync_reset : std_logic_vector(1 downto 0);
-    attribute ASYNC_REG of sync_reset : variable is "TRUE";
-    attribute ASYNC_REG of sync_rx_error : variable is "TRUE";
     variable cdcsync_reset : std_logic_vector(1 downto 0);
     attribute ASYNC_REG of cdcsync_reset : variable is "TRUE";
-    attribute ASYNC_REG of cdcsync_rx_error : variable is "TRUE";
   begin
     TRIG0(58 downto 53) <= rx_error_count;
     TRIG0(59) <= loss_lock;
