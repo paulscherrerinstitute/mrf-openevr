@@ -5,8 +5,6 @@ use ieee.std_logic_unsigned.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
-use work.transceiver_pkg.all;
-
 entity zynq_top is
   port (
     PL_CLK       : in std_logic;
@@ -82,9 +80,17 @@ architecture structure of zynq_top is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
 
-    -- MGT
-    mgtIb           : in  transceiver_ob_type;
-    mgtOb           : out transceiver_ib_type
+    -- MGT physical pins
+    
+    MGTREFCLK0_P : in std_logic;
+    MGTREFCLK0_N : in std_logic;
+    MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
+    MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
+
+    MGTTX2_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
+    MGTTX2_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
+    MGTRX2_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
+    MGTRX2_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
     );
   end component;
 
@@ -119,13 +125,10 @@ architecture structure of zynq_top is
       reset             : in std_logic);
   end component;
 
-  COMPONENT Ila_0
+  COMPONENT ila_0
     PORT (
       clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
+      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
       );
   END COMPONENT;
 
@@ -183,9 +186,6 @@ architecture structure of zynq_top is
   signal databuf_irq_dc      : std_logic;
 
   signal topology_addr       : std_logic_vector(31 downto 0);
-
-  signal mgtIb               : transceiver_ib_type;
-  signal mgtOb               : transceiver_ob_type;
   
 begin
 
@@ -193,41 +193,18 @@ begin
   i_ila : ila_0
     port map (
       CLK => event_clk,
-      probe0 => TRIG0( 63 downto   0),
-      probe1 => TRIG0(127 downto  64),
-      probe2 => TRIG0(191 downto 128),
-      probe3 => TRIG0(255 downto 192)
-      );
+      probe0 => TRIG0);
 
   i_bufg : bufg
     port map (
       I => PL_CLK,
       O => sys_clk);
 
-  i_mgt : entity work.transceiver_dc_gt
+  i_evr_dc : evr_dc
     generic map (
       RX_POLARITY => '0',
       TX_POLARITY => '0',
-      refclksel   => '1')
-    port map (
-      sys_clk  => sys_clk,
-
-      ib       => mgtIb,
-      ob       => mgtOb,
-
-      REFCLK0P => gnd,
-      REFCLK0N => gnd,
-      REFCLK1P => MGTREFCLK1_P,
-      REFCLK1N => MGTREFCLK1_N,
-
-
-      rxn     => MGTRX2_N,
-      rxp     => MGTRX2_p,
-
-      txn     => MGTTX2_N,
-      txp     => MGTTX2_P);
-
-  i_evr_dc : evr_dc
+      refclksel => '1')
     port map (
       sys_clk => sys_clk,
       refclk_out => refclk,
@@ -261,8 +238,17 @@ begin
       delay_comp_target => delay_comp_target,
       delay_comp_locked_out => delay_comp_locked,
       
-      mgtIb => mgtOb,
-      mgtOb => mgtIb);
+      MGTREFCLK0_P => gnd,
+      MGTREFCLK0_N => gnd,
+      MGTREFCLK1_P => MGTREFCLK1_P,
+      MGTREFCLK1_N => MGTREFCLK1_N,
+      
+      
+      MGTRX2_N => MGTRX2_N,
+      MGTRX2_P => MGTRX2_p,
+
+      MGTTX2_N => MGTTX2_N,
+      MGTTX2_P => MGTTX2_P);
 
   i_databuf_dc : databuf_rx_dc
     port map (

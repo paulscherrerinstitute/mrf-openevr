@@ -125,10 +125,7 @@ architecture struct of delay_adjust is
   COMPONENT ila_0
     PORT (
       clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
+      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
       );
   END COMPONENT;
 
@@ -137,11 +134,7 @@ begin
 --  i_ila : ila_0
 --    port map (
 --      CLK => clk,
---      probe0 => TRIG0( 63 downto   0),
---      probe1 => TRIG0(127 downto  64),
---      probe2 => TRIG0(191 downto 128),
---      probe3 => TRIG0(255 downto 192)
---      );
+--      probe0 => TRIG0);
 
   dc_status(31 downto 4) <= (others => '0');
   dc_status(3) <= delay_too_long;
@@ -194,7 +187,7 @@ begin
     end if;
   end process;
 
-  cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback, adjust_locked_i)
+  cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback) 
     variable state            : std_logic_vector(2 downto 0) := "000";
     variable cycle_error      : std_logic_vector(15 downto 0);
     variable cnt              : std_logic_vector(4 downto 0) := "00000";
@@ -435,17 +428,18 @@ begin
   TRIG0(38) <= dcm_reload_err;
   TRIG0(39) <= ce;
   TRIG0(42 downto 40) <= state_i;
+  TRIG0(61 downto 46) <= cycle_error_i;
   TRIG0(43) <= link_ok;
   TRIG0(44) <= disable;
   TRIG0(45) <= adjust_locked_i;
-  TRIG0(61 downto 46) <= cycle_error_i;
   TRIG0(127 downto 62) <= (others => '0');
+  TRIG0(255 downto 162) <= (others => '0');
+
   TRIG0(131 downto 128) <= s_dcm_step_phase;
   TRIG0(137 downto 132) <= s_dcm_phase;
   TRIG0(148 downto 138) <= s_pwm_cnt;
   TRIG0(159 downto 149) <= s_pulse_cnt;
   TRIG0(160) <= s_zero_phase;
   TRIG0(161) <= s_pwm_done;
-  TRIG0(255 downto 162) <= (others => '0');
 
 end struct;

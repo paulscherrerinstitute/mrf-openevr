@@ -56,13 +56,13 @@ entity databuf_rx_dc is
     ov_flag           : out std_logic_vector(0 to 127);
     clear_flag        : in std_logic_vector(0 to 127);
 
-    reset             : in std_logic
+    reset             : in std_logic;
     
+    TRIG0             : out std_logic_vector(255 downto 0)    
     );
 end databuf_rx_dc;
 
 architecture implementation of databuf_rx_dc is
-  signal TRIG0            : std_logic_vector(255 downto 0);
 
   signal rx_addr          : std_logic_vector(10 downto 0);
   signal rx_data          : std_logic_vector(7 downto 0);
@@ -83,7 +83,6 @@ architecture implementation of databuf_rx_dc is
   signal gnd              : std_logic;
   signal gnd32            : std_logic_vector(31 downto 0);
   signal vcc              : std_logic;
-  signal data_out_i       : std_logic_vector(31 downto 0);
 
   component buf_bsram IS
     port (
@@ -335,26 +334,16 @@ port (
   COMPONENT ila_0
     PORT (
       clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
+      probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0)
       );
   END COMPONENT;
 
-
 begin
 
-  GEN_ILA : if ( false ) generate
-  i_ila : ila_0
-    port map (
-      CLK => event_clk,
-      probe0 => TRIG0( 63 downto   0),
-      probe1 => TRIG0(127 downto  64),
-      probe2 => TRIG0(191 downto 128),
-      probe3 => TRIG0(255 downto 192)
-      );
-  end generate GEN_ILA;
+--  i_ila : ila_0
+--    port map (
+--      CLK => event_clk,
+--      probe0 => TRIG0);
 
   gnd <= '0';
   gnd32 <= (others => '0');
@@ -369,7 +358,7 @@ begin
       dina => rx_data,
       douta => open,
       dinb => gnd32,
-      doutb => data_out_i,
+      doutb => data_out,
       wea => we_A,
       web => gnd);
 
@@ -430,11 +419,10 @@ begin
       WEBWE(7) => gnd);
 
   size_data_out(31 downto 16) <= (others => '0');
-  size_data_out(15 downto 0)  <= size_data_int(15 downto 0);
-  data_out                    <= data_out_i;
+  size_data_out(15 downto 0) <= size_data_int(15 downto 0);
 
   reception : process (event_clk, databuf_data, databuf_k, databuf_ena,
-		       reset, delay_comp_cyc, rx_flag_i, cs_flag_i, ov_flag_i)
+		       reset, delay_comp_cyc)
     variable data_ena       : std_logic;
     variable address_cycle  : std_logic;
     variable running        : std_logic;
@@ -561,20 +549,18 @@ begin
         topology_addr <= (others => '0');
       end if;
 
-
-      TRIG0(57) <= data_ena;
-      TRIG0(58) <= address_cycle;
-      TRIG0(61 downto 59) <= addr_decode;
-      TRIG0(63 downto 62) <= (others => '0');
+      TRIG0(64) <= data_ena;
+      TRIG0(65) <= '0';
+      TRIG0(66) <= address_cycle;
 --      TRIG0(67) <= running;
-      TRIG0(76 downto 64) <= address;
-      TRIG0(88 downto 77) <= bytecnt;
-      TRIG0(131 downto 126) <= (others => '0');
-      TRIG0(188 downto 157) <= dc_value_in;
-      TRIG0(191 downto 189) <= (others => '0');
-      TRIG0(223 downto 192) <= topology_in;
-      TRIG0(239 downto 224) <= rx_checksum;
-      TRIG0(255 downto 240) <= checksum;
+      TRIG0(79 downto 67) <= address;
+      TRIG0(91 downto 80) <= bytecnt;
+      TRIG0(94 downto 92) <= addr_decode;
+      TRIG0(127 downto 100) <= (others => '0');
+      TRIG0(184 downto 153) <= dc_value_in;
+      TRIG0(216 downto 185) <= topology_in;
+      TRIG0(232 downto 217) <= rx_checksum;
+      TRIG0(248 downto 233) <= checksum;
     end if;
   end process;
 
@@ -601,10 +587,11 @@ begin
   TRIG0(39 downto 30) <= seg_addr;
   TRIG0(55 downto 40) <= rx_size;
   TRIG0(56) <= wr_size;
-  TRIG0(93 downto 89) <= delay_comp_cyc;
-  TRIG0(125 downto  94) <= data_out_i;
-  TRIG0(140 downto 132) <= addr_in;
-  TRIG0(156 downto 141) <= size_data_int(15 downto 0);
+  TRIG0(63 downto 57) <= (others => '0');
+  TRIG0(99 downto 95) <= delay_comp_cyc;
+  TRIG0(136 downto 128) <= addr_in;
+  TRIG0(152 downto 137) <= size_data_int(15 downto 0);
+  TRIG0(255 downto 249) <= (others => '0');
   
 end implementation;
       

@@ -23,6 +23,8 @@
 # 2. The following source(s) files that were local or imported into the original project.
 #    (Please see the '$orig_proj_dir' and '$origin_dir' variable setting below at the start of the script)
 #
+#    "ip/ila_0.xci"
+#
 # 3. The following remote source files that were added to the original project:-
 #
 #    "vhdl/average.vhd"
@@ -32,9 +34,7 @@
 #    "vhdl/delay_adjust.vhd"
 #    "vhdl/delay_measure_wnd.vhd"
 #    "vhdl/evr_dc.vhd"
-#    "vhdl/transceiver_dc.vhd"
-#    "vhdl/transceiver_gtx.vhd"
-#    "vhdl/transceiver_pkg.vhd"
+#    "vhdl/transceiver_dc_k7.vhd"
 #    "vhdl/zynq_top.vhd"
 #    "vhdl/zynq.xdc"
 #
@@ -132,17 +132,6 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
   create_fileset -srcset sources_1
 }
 
-# Create IPs
-create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_0
-set_property -dict [list \
-  CONFIG.C_PROBE3_WIDTH {64} \
-  CONFIG.C_PROBE2_WIDTH {64} \
-  CONFIG.C_PROBE1_WIDTH {64} \
-  CONFIG.C_PROBE0_WIDTH {64} \
-  CONFIG.C_NUM_OF_PROBES {4} \
-  CONFIG.C_INPUT_PIPE_STAGES {1} \
-] [get_ips ila_0]
-
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
 set files [list \
@@ -153,9 +142,7 @@ set files [list \
  "[file normalize "$origin_dir/vhdl/delay_adjust.vhd"]"\
  "[file normalize "$origin_dir/vhdl/delay_measure_wnd.vhd"]"\
  "[file normalize "$origin_dir/vhdl/evr_dc.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_dc.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_pkg.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_gtx.vhd"]"\
+ "[file normalize "$origin_dir/vhdl/transceiver_dc_k7.vhd"]"\
  "[file normalize "$origin_dir/vhdl/zynq_top.vhd"]"\
 ]
 add_files -norecurse -fileset $obj $files
@@ -196,17 +183,7 @@ set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
 
-set file "$origin_dir/vhdl/transceiver_dc.vhd"
-set file [file normalize $file]
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "VHDL" -objects $file_obj
-
-set file "$origin_dir/vhdl/transceiver_gtx.vhd"
-set file [file normalize $file]
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "VHDL" -objects $file_obj
-
-set file "$origin_dir/vhdl/transceiver_pkg.vhd"
+set file "$origin_dir/vhdl/transceiver_dc_k7.vhd"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
@@ -223,6 +200,14 @@ set_property -name "file_type" -value "VHDL" -objects $file_obj
 # Set 'sources_1' fileset properties
 set obj [get_filesets sources_1]
 set_property -name "top" -value "zynq_top" -objects $obj
+
+# Set 'sources_1' fileset object
+set obj [get_filesets sources_1]
+# Add local files from the original project (-no_copy_sources specified)
+set files [list \
+ "[file normalize "$origin_dir/ip/ila_0.xci"]"\
+]
+set added_files [add_files -fileset sources_1 $files]
 
 # Set 'sources_1' fileset file properties for remote files
 # None

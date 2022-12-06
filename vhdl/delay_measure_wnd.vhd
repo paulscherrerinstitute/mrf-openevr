@@ -124,15 +124,12 @@ begin
   vcc_vec <= (others => '1');
   
   process (clk, beacon_0, beacon_1, reset)
-    attribute ASYNC_REG    : string;
     variable counting      : std_logic := '0';
     variable prev_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
     variable cnt           : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
     variable diff_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
     variable sync_beacon_0 : std_logic_vector(3 downto 0) := "0000";
     variable sync_beacon_1 : std_logic_vector(3 downto 0) := "0000";
-    attribute ASYNC_REG of sync_beacon_0 : variable is "TRUE";
-    attribute ASYNC_REG of sync_beacon_1 : variable is "TRUE";
     variable cnt_valid     : std_logic;
   begin
     if rising_edge(clk) then
