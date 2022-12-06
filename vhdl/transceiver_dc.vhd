@@ -122,6 +122,7 @@ architecture structure of transceiver_dc is
   signal rx_error        : std_logic;
   signal rx_int_beacon_i : std_logic;
   signal rx_vio_usrclk   : std_logic;
+  signal rx_clear_viol_usrclk   : std_logic;
   
   signal rx_link_ok_i    : std_logic;
   signal rx_error_i      : std_logic;
@@ -645,9 +646,9 @@ begin
   end process;
 
   rx_data_align_detect : process (rxusrclk, reset, rx_charisk, rx_data,
-				  rx_clear_viol)
+				  rx_clear_viol_usrclk)
   begin
-    if cdcsync_reset_rxusrclk(0) = '1' or rx_clear_viol = '1' then
+    if cdcsync_reset_rxusrclk(0) = '1' or rx_clear_viol_usrclk = '1' then
       align_error <= '0';
     elsif rising_edge(rxusrclk) then
       align_error <= '0';
@@ -658,8 +659,8 @@ begin
   end process;
 
   violation_flag : process (sys_clk, rx_clear_viol, link_ok_rxusr, rx_vio_usrclk)
-    variable vio : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of vio : variable is "TRUE";
+    variable cdcsync_vio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of cdcsync_vio : variable is "TRUE";
     variable vio_in : std_logic;
   begin
     vio_in := rx_vio_usrclk or not link_ok_rxusr;
@@ -667,27 +668,28 @@ begin
       if rx_clear_viol = '1' then
         rx_violation <= '0';
       end if;
-      if vio(0) = '1' then
+      if cdcsync_vio(0) = '1' then
         rx_violation <= '1';
       end if;
-      vio := vio_in & vio(vio'left downto 1);
+      cdcsync_vio := vio_in & cdcsync_vio(cdcsync_vio'left downto 1);
     end if;
   end process;
   
   violation_detect : process (rxusrclk, rx_clear_viol,
 			      rx_disperr, rx_notintable, link_ok)
-    variable clrvio : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of clrvio : variable is "TRUE";
+    variable cdcsync_clrvio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of cdcsync_clrvio : variable is "TRUE";
   begin
+    rx_clear_viol_usrclk <= cdcsync_clrvio(0);
     if rising_edge(rxusrclk) then
       if rx_disperr /= "00" or
         rx_notintable /= "00" then
 	rx_vio_usrclk <= '1';
-      elsif clrvio(0) = '1' then
+      elsif cdcsync_clrvio(0) = '1' then
         rx_vio_usrclk <= '0';
       end if;
 
-      clrvio := rx_clear_viol & clrvio(clrvio'left downto 1);
+      cdcsync_clrvio := rx_clear_viol & cdcsync_clrvio(cdcsync_clrvio'left downto 1);
     end if;
   end process;
 
