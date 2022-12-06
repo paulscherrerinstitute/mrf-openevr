@@ -13,10 +13,6 @@ set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/.
 
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream.*sr_delay_trig_reg[[]2[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
 
-set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/violation_detect[.]clrvio_reg[[]1[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
-
-set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*i_upstream/violation_flag[.]vio_reg[[]1[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
-
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly_adj/sync_dc_id_reg[[][0-9]+[]]}] -filter {REF_PIN_NAME==D}]
 
 set_false_path -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly_adj/dcm_control[.]dcm_updt_sr_reg[[]0[]]}] -filter {REF_PIN_NAME==D || REF_PIN_NAME==S || REF_PIN_NAME==R}]
