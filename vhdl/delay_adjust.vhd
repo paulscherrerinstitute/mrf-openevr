@@ -90,7 +90,7 @@ architecture struct of delay_adjust is
   
   signal ce              : std_logic;
 
-  signal state_i         : std_logic_vector(2 downto 0);
+  signal state_i         : std_logic_vector(1 downto 0);
   signal cycle_error_i   : std_logic_vector(15 downto 0);
   signal cnt_i           : std_logic_vector(4 downto 0);
   signal long_delay_i    : std_logic_vector(31 downto 0);
@@ -216,7 +216,7 @@ begin
   end process;
 
   cycle_adjust: process (clk, phase_error, delay_valid, disable, feedback) 
-    variable state            : std_logic_vector(2 downto 0) := "000";
+    variable state            : std_logic_vector(1 downto 0) := "00";
     variable cycle_error      : std_logic_vector(15 downto 0);
     variable cnt              : std_logic_vector(4 downto 0) := "00000";
     variable long_delay       : std_logic_vector(31 downto 0);
@@ -286,14 +286,14 @@ begin
         end if;
         
         case state is
-          when "000" =>
+          when "00" =>
             if delay_value_updt = '1' then
-              state := "001";
+              state := "01";
             end if;
-          when "001" =>
+          when "01" =>
             if cnt(cnt'high) = '1' then
               if fe_inc(fe_inc'high) = '0' and fe_dec(fe_dec'high) = '1' then
-                state := "011";
+                state := "11";
               else
                 dcm_fine_adjust <= '0';
               end if;
@@ -316,7 +316,7 @@ begin
               dcm_reload_err <= '1';
               dcm_fine_adjust <= '1';
               if fe_inc(fe_inc'high) = '1' or fe_dec(fe_dec'high) = '0' then
-                state := "000";
+                state := "00";
               end if;
             end if;
           when others =>
@@ -328,7 +328,7 @@ begin
         delay_dec <= '0';
       end if;
       if sync_link_ok(0) = '0' then
-        state := "000";
+        state := "00";
         dcm_fine_adjust <= '0';
         dcm_reload_err <= '0';
         adjust_locked_i <= '0';
@@ -463,7 +463,8 @@ begin
   TRIG0(37) <= dcm_fine_adjust;
   TRIG0(38) <= dcm_reload_err;
   TRIG0(39) <= ce;
-  TRIG0(42 downto 40) <= state_i;
+  TRIG0(41 downto 40) <= state_i;
+  TRIG0(42) <= '0';
   TRIG0(61 downto 46) <= cycle_error_i;
   TRIG0(43) <= link_ok_i;
   TRIG0(44) <= disable;
