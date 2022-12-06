@@ -80,9 +80,6 @@ architecture structure of evr_dc is
   component transceiver_dc is
     generic
       (
-        RX_DFE_KL_CFG2_IN            : bit_vector :=  X"3010D90C";
-        PMA_RSV_IN                   : bit_vector :=  x"00018480";
-        PCS_RSVD_ATTR_IN             : bit_vector :=  X"000000000002";
         RX_POLARITY                  : std_logic := '0';
         TX_POLARITY                  : std_logic := '0';
         REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
