@@ -32,8 +32,10 @@
 #    "vhdl/delay_adjust.vhd"
 #    "vhdl/delay_measure_wnd.vhd"
 #    "vhdl/evr_dc.vhd"
+#    "vhdl/transceiver_pkg.vhd"
 #    "vhdl/transceiver_dc.vhd"
 #    "vhdl/transceiver_gtx_k7.vhd"
+#    "vhdl/transceiver_gtp_a7.vhd"
 #    "vhdl/zynq_top.vhd"
 #    "vhdl/zynq.xdc"
 #    "vhdl/gtxclk.xdc"
@@ -139,6 +141,7 @@ set files [list \
  "[file normalize "$origin_dir/vhdl/average.vhd"]"\
  "[file normalize "$origin_dir/vhdl/buf_bsram.vhd"]"\
  "[file normalize "$origin_dir/vhdl/evr_pkg.vhd"]"\
+ "[file normalize "$origin_dir/vhdl/transceiver_pkg.vhd"]"\
  "[file normalize "$origin_dir/vhdl/databuf_rx_dc.vhd"]"\
  "[file normalize "$origin_dir/vhdl/delay_adjust.vhd"]"\
  "[file normalize "$origin_dir/vhdl/delay_measure_wnd.vhd"]"\
@@ -161,6 +164,11 @@ set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
 
 set file "$origin_dir/vhdl/evr_pkg.vhd"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
+set_property -name "file_type" -value "VHDL" -objects $file_obj
+
+set file "$origin_dir/vhdl/transceiver_pkg.vhd"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
@@ -463,7 +471,11 @@ if { $obj != "" } {
 
 }
 set obj [get_runs impl_1]
-set_property -name "strategy" -value "Vivado Implementation Defaults" -objects $obj
+set_property -name "strategy" -value "Performance_Explore" -objects $obj
+set_property -name "steps.opt_design.args.directive" -value "Explore" -objects $obj
+set_property -name "steps.place_design.args.directive" -value "Explore" -objects $obj
+set_property -name "steps.phys_opt_design.args.directive" -value "Explore" -objects $obj
+set_property -name "steps.route_design.args.directive" -value "Explore" -objects $obj
 set_property -name "steps.write_bitstream.args.readback_file" -value "0" -objects $obj
 set_property -name "steps.write_bitstream.args.verbose" -value "0" -objects $obj
 

@@ -17,6 +17,7 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 use work.evr_pkg.all;
+use work.transceiver_pkg.all;
 
 entity transceiver_gt is
   generic
@@ -26,54 +27,21 @@ entity transceiver_gt is
       REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
       );
   port (
-    sys_clk         : in std_logic;   -- system bus clock
+    -- MGT interface
     REFCLK0P        : in std_logic;   -- MGTREFCLK0_P
     REFCLK0N        : in std_logic;   -- MGTREFCLK0_N
     REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
     REFCLK1N        : in std_logic;   -- MGTREFCLK1N
 
-    rxusrclk        : out std_logic;
-    txusrclk        : out std_logic;
-
-    -- RX Datapath signals
-    RXUSERRDY_in    : in  std_logic;
-    rx_data         : out std_logic_vector(63 downto 0);      
-    rx_charisk      : out std_logic_vector(1 downto 0);
-    rx_disperr      : out std_logic_vector(1 downto 0);
-    rx_notintable   : out std_logic_vector(1 downto 0);
-
-    -- TX Datapath signals
-    tx_data         : in  std_logic_vector(63 downto 0);
-    txbufstatus     : out std_logic_vector(1 downto 0) := "00";
-    tx_charisk      : in  std_logic_vector(1 downto 0);
-
-    -- DRP
-    drpclk          : out std_logic;
-    drpaddr         : in  std_logic_vector(8 downto 0);
-    drpdi           : in  std_logic_vector(15 downto 0);
-    drpdo           : out std_logic_vector(15 downto 0);
-    drpen           : in  std_logic;
-    drpwe           : in  std_logic;
-    drprdy          : out std_logic;
-    drpbsy          : out std_logic := '0';
-
-    useDrpDlyAdj    : out std_logic;
-
-    CPLLRESET_in    : in  std_logic;
-    CPLLLOCK_out    : out std_logic;
-    GTRXRESET_in    : in  std_logic;
-    GTTXRESET_in    : in  std_logic;
-    RXCDRLOCK_out   : out std_logic := '0';
-    RXRESETDONE_out : out std_logic := '0';
-    TXUSERRDY_in    : in  std_logic;
-    
-    reset           : in    std_logic;
-
     RXN             : in    std_logic;
     RXP             : in    std_logic;
 
     TXN             : out   std_logic;
-    TXP             : out   std_logic
+    TXP             : out   std_logic;
+
+    -- fabric interface
+    transceiverIb   : in  EvrTransceiverIbType;
+    transceiverOb   : out EvrTransceiverObType
     );
 end transceiver_gt;
 
@@ -84,9 +52,24 @@ architecture structure of transceiver_gt is
 
   signal txusrclk_i         : std_logic;
   signal rxusrclk_i         : std_logic;
+  signal rx_data_i          : std_logic_vector(15 downto 0);      
+  signal rx_charisk         : std_logic_vector(1 downto 0);
+  signal rx_disperr         : std_logic_vector(1 downto 0);
+  signal rx_notintable      : std_logic_vector(1 downto 0);
+  signal tx_bufstatus       : std_logic_vector(1 downto 0) := (others => '0');
+
+  signal drpclk             : std_logic;
+  signal drpdo              : std_logic_vector(15 downto 0);
+  signal drprdy             : std_logic;
+  signal drpbsy             : std_logic := '0';
+  signal cpll_locked        : std_logic;
+
 
   signal txRst_i            : std_logic;
   signal rxRst_i            : std_logic;
+
+  signal sys_clk            : std_logic;
+  signal reset              : std_logic;
 
   signal cdcsync_txrst      : std_logic_vector(1 downto 0) := (others => '1');
   attribute ASYNC_REG       of cdcsync_txrst : signal is "TRUE";
@@ -94,25 +77,21 @@ architecture structure of transceiver_gt is
   attribute ASYNC_REG       of cdcsync_rxrst : signal is "TRUE";
 
 begin
+  sys_clk               <= transceiverIb.sys_clk;
+  reset                 <= transceiverIb.sys_rst;
 
-  useDrpDlyAdj          <= '0';
-
-  rxusrclk              <= rxusrclk_i;
-  txusrclk              <= txusrclk_i;
   drpclk                <= sys_clk;
 
   P_RST : process ( sys_clk ) is
   begin
     if ( rising_edge( sys_clk ) ) then
-      cdcsync_txrst <= GTTXRESET_in & cdcsync_txrst(cdcsync_txrst'left downto 1);
-      cdcsync_rxrst <= GTRXRESET_in & cdcsync_rxrst(cdcsync_rxrst'left downto 1);
+      cdcsync_txrst <= transceiverIb.tx_rst & cdcsync_txrst(cdcsync_txrst'left downto 1);
+      cdcsync_rxrst <= transceiverIb.rx_rst & cdcsync_rxrst(cdcsync_rxrst'left downto 1);
     end if;
   end process P_RST;
 
   txRst_i               <= (cdcsync_txrst(0) or reset);
   rxRst_i               <= (cdcsync_rxrst(0) or reset);
-
-  rx_data(63 downto 16) <= (others => '0');
 
   G_REF0 : if ( REFCLKSEL = '0' ) generate
     REFCLK_P <= REFCLK0P;
@@ -133,7 +112,7 @@ begin
     Q0_CLK1_GTREFCLK_PAD_P_IN               => REFCLK_P,
 
     GT0_TX_FSM_RESET_DONE_OUT               => open,
-    GT0_RX_FSM_RESET_DONE_OUT               => RXRESETDONE_out,
+    GT0_RX_FSM_RESET_DONE_OUT               => open,
     GT0_DATA_VALID_IN                       => '1',
 
     GT0_TXUSRCLK_OUT                        => txusrclk_i,
@@ -145,20 +124,20 @@ begin
     --GT0  (X0Y0)
     --____________________________CHANNEL PORTS________________________________
     ---------------------------- Channel - DRP Ports  --------------------------
-    gt0_drpaddr_in                          => drpaddr,
-    gt0_drpdi_in                            => drpdi,
+    gt0_drpaddr_in                          => transceiverIb.drp_addr,
+    gt0_drpdi_in                            => transceiverIb.drp_di,
     gt0_drpdo_out                           => drpdo,
-    gt0_drpen_in                            => drpen,
+    gt0_drpen_in                            => transceiverIb.drp_en,
     gt0_drprdy_out                          => drprdy,
-    gt0_drpwe_in                            => drpwe,
+    gt0_drpwe_in                            => transceiverIb.drp_we,
     --------------------- RX Initialization and Reset Ports --------------------
     gt0_eyescanreset_in                     => '0',
-    gt0_rxuserrdy_in                        => RXUSERRDY_in,
+    gt0_rxuserrdy_in                        => transceiverIb.rx_usr_rdy,
     -------------------------- RX Margin Analysis Ports ------------------------
     gt0_eyescandataerror_out                => open,
     gt0_eyescantrigger_in                   => '0',
     ------------------ Receive Ports - FPGA RX Interface Ports -----------------
-    gt0_rxdata_out                          => rx_data(15 downto 0),
+    gt0_rxdata_out                          => rx_data_i,
     ------------------ Receive Ports - RX 8B/10B Decoder Ports -----------------
     gt0_rxcharisk_out                       => rx_charisk,
     gt0_rxdisperr_out                       => rx_disperr,
@@ -188,11 +167,11 @@ begin
     gt0_rxresetdone_out                     => open,
     --------------------- TX Initialization and Reset Ports --------------------
     gt0_gttxreset_in                        => '0',
-    gt0_txuserrdy_in                        => TXUSERRDY_in,
+    gt0_txuserrdy_in                        => transceiverIb.tx_usr_rdy,
     ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
-    gt0_txdata_in                           => tx_data(15 downto 0),
+    gt0_txdata_in                           => transceiverIb.tx_data,
     ------------------ Transmit Ports - TX 8B/10B Encoder Ports ----------------
-    gt0_txcharisk_in                        => tx_charisk,
+    gt0_txcharisk_in                        => transceiverIb.tx_charisk,
     --------------- Transmit Ports - TX Configurable Driver Ports --------------
     gt0_gtptxn_out                          => TXN,
     gt0_gtptxp_out                          => TXP,
@@ -214,12 +193,45 @@ begin
     GT0_PLL0RESET_OUT                       => open,
     GT0_PLL0OUTCLK_OUT                      => open,
     GT0_PLL0OUTREFCLK_OUT                   => open,
-    GT0_PLL0LOCK_OUT                        => CPLLLOCK_out,
+    GT0_PLL0LOCK_OUT                        => cpll_locked,
     GT0_PLL0REFCLKLOST_OUT                  => open,
     GT0_PLL1OUTCLK_OUT                      => open,
     GT0_PLL1OUTREFCLK_OUT                   => open,
 
     sysclk_in                               => sys_clk
   );
+
+  P_ASSIGN : process (
+    rxusrclk_i,
+    rx_data_i,
+    rx_charisk,
+    rx_disperr,
+    rx_notintable,
+    txusrclk_i,
+    tx_bufstatus,
+    drpclk,
+    drpdo,
+    drprdy,
+    drpbsy,
+    cpll_locked
+  ) is
+  begin
+    -- defaults
+    transceiverOb               <= EVR_TRANSCEIVER_OB_INIT_C;
+    -- override
+    transceiverOb.rx_usr_clk    <= rxusrclk_i;
+    transceiverOb.rx_data       <= rx_data_i( transceiverOb.rx_data'range );
+    transceiverOb.rx_charisk    <= rx_charisk;
+    transceiverOb.rx_disperr    <= rx_disperr;
+    transceiverOb.rx_notintable <= rx_notintable;
+    transceiverOb.tx_usr_clk    <= txusrclk_i;
+    transceiverOb.tx_bufstatus  <= tx_bufstatus;
+    transceiverOb.drp_clk       <= drpclk;
+    transceiverOb.drp_do        <= drpdo;
+    transceiverOb.drp_rdy       <= drprdy;
+    transceiverOb.drp_bsy       <= drpbsy;
+    transceiverOb.dly_adj       <= NONE;
+    transceiverOb.cpll_locked   <= cpll_locked;
+  end process P_ASSIGN;
 
 end architecture structure;

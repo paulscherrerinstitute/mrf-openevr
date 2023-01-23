@@ -17,27 +17,21 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 use work.evr_pkg.all;
+use work.transceiver_pkg.all;
+
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 
 entity transceiver_dc is
   generic
     (
-      MARK_DEBUG_ENABLE            : string    := "FALSE";
-      RX_POLARITY                  : std_logic := '0';
-      TX_POLARITY                  : std_logic := '0';
-      REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
+      MARK_DEBUG_ENABLE            : string    := "FALSE"
       );
   port (
     sys_clk         : in std_logic;   -- system bus clock
-    REFCLK0P        : in std_logic;   -- MGTREFCLK0_P
-    REFCLK0N        : in std_logic;   -- MGTREFCLK0_N
-    REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
-    REFCLK1N        : in std_logic;   -- MGTREFCLK1N
-    REFCLK_OUT      : out std_logic;  -- reference clock output
     REFCLK_RST      : out std_logic;
-    recclk_out      : out std_logic;  -- Recovered clock, locked to EVG
     recclk_rst      : out std_logic;
+
     event_clk       : in std_logic;   -- event clock input (phase shifted by DCM)
     event_clk_rst   : in std_logic;   -- event clock input (phase shifted by DCM)
     
@@ -76,19 +70,21 @@ entity transceiver_dc is
     databuf_tx_k    : in  std_logic; -- TX data buffer K-character
     databuf_tx_ena  : out std_logic; -- TX data buffer data enable
     databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
-    
-    RXN             : in    std_logic;
-    RXP             : in    std_logic;
 
-    TXN             : out   std_logic;
-    TXP             : out   std_logic
+    -- Transceiver connections
+    transceiverIb   : out EvrTransceiverIbType;
+    transceiverOb   : in  EvrTransceiverObType
     );
+
+  attribute MARK_DEBUG of databuf_tx_mode : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_tx_k : signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_txd : signal is MARK_DEBUG_ENABLE;
+
 end transceiver_dc;
 
 architecture structure of transceiver_dc is
 
   attribute ASYNC_REG         : string;
-  attribute MARK_DEBUG        : string;
 
   signal cdcsync_reset_txusrclk  : std_logic_vector(1 downto 0) := (others => '0');
   signal cdcsync_reset_rxusrclk  : std_logic_vector(1 downto 0) := (others => '0');
@@ -160,11 +156,7 @@ architecture structure of transceiver_dc is
 
   signal tx_event_ena_i : std_logic;
   
-  -- RX Datapath signals
-  signal rxdata_i                         :   std_logic_vector(63 downto 0);      
-
   -- TX Datapath signals
-  signal txdata_i                         :   std_logic_vector(63 downto 0);
   signal txbufstatus_i                    :   std_logic_vector(1 downto 0);  
 
   signal phase_acc    : std_logic_vector(6 downto 0);
@@ -177,14 +169,13 @@ architecture structure of transceiver_dc is
   signal drpwe   : std_logic;
   signal drprdy  : std_logic;
   signal drpbsy  : std_logic;
-  signal useDrpDlyAdj : std_logic;
+  signal useDrpDlyAdj : TxDelayAdjType;
 
   signal CPLLRESET_in : std_logic;
   signal CPLLLOCK_out : std_logic;
   signal GTRXRESET_in : std_logic;
   signal GTTXRESET_in : std_logic;
   signal RXCDRLOCK_out : std_logic;
-  signal RXRESETDONE_out : std_logic;
   signal RXUSERRDY_in : std_logic;
   signal TXUSERRDY_in : std_logic;
 
@@ -206,10 +197,6 @@ architecture structure of transceiver_dc is
   attribute MARK_DEBUG of databuf_rxd_i : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of databuf_rx_k_i : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of RXCDRLOCK_out : signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of RXRESETDONE_out : signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_tx_mode : signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_tx_k : signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of databuf_txd : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_do : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_dop : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_rden : signal is MARK_DEBUG_ENABLE;
@@ -220,65 +207,6 @@ architecture structure of transceiver_dc is
   attribute MARK_DEBUG of tx_fifo_empty : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of tx_event_ena_i : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of rx_error_i : signal is MARK_DEBUG_ENABLE;
-
-  component transceiver_gt is
-    generic
-      (
-        RX_POLARITY                  : std_logic := '0';
-        TX_POLARITY                  : std_logic := '0';
-        REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
-        );
-    port (
-      sys_clk         : in std_logic;   -- system bus clock
-      REFCLK0P        : in std_logic;   -- MGTREFCLK0_P
-      REFCLK0N        : in std_logic;   -- MGTREFCLK0_N
-      REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
-      REFCLK1N        : in std_logic;   -- MGTREFCLK1N
-  
-      rxusrclk        : out std_logic;
-      txusrclk        : out std_logic;
-  
-      -- RX Datapath signals
-      RXUSERRDY_in    : in  std_logic;
-      rx_data         : out std_logic_vector(63 downto 0);      
-      rx_charisk      : out std_logic_vector(1 downto 0);
-      rx_disperr      : out std_logic_vector(1 downto 0);
-      rx_notintable   : out std_logic_vector(1 downto 0);
-  
-      -- TX Datapath signals
-      tx_data         : in  std_logic_vector(63 downto 0);
-      txbufstatus     : out std_logic_vector(1 downto 0);  
-      tx_charisk      : in  std_logic_vector(1 downto 0);
-  
-      -- DRP
-      drpclk          : out std_logic;
-      drpaddr         : in  std_logic_vector(8 downto 0);
-      drpdi           : in  std_logic_vector(15 downto 0);
-      drpdo           : out std_logic_vector(15 downto 0);
-      drpen           : in  std_logic;
-      drpwe           : in  std_logic;
-      drprdy          : out std_logic;
-      drpbsy          : out std_logic;
-
-      useDrpDlyAdj    : out std_logic;
-  
-      CPLLRESET_in    : in  std_logic;
-      CPLLLOCK_out    : out std_logic;
-      GTRXRESET_in    : in  std_logic;
-      GTTXRESET_in    : in  std_logic;
-      RXCDRLOCK_out   : out std_logic;
-      RXRESETDONE_out : out std_logic;
-      TXUSERRDY_in    : in  std_logic;
-      
-      reset           : in    std_logic;
-  
-      RXN             : in    std_logic;
-      RXP             : in    std_logic;
-  
-      TXN             : out   std_logic;
-      TXP             : out   std_logic
-      );
-  end component transceiver_gt;
 
 begin
 
@@ -303,73 +231,53 @@ begin
     end if;
   end process;
 
-  gt_i : transceiver_gt
-    generic map
-    (
-        RX_POLARITY                => RX_POLARITY,
-        TX_POLARITY                => TX_POLARITY,
-        REFCLKSEL                  => REFCLKSEL
-    )
-    port map
-    (
-        sys_clk                         =>      sys_clk,
+  CPLLLOCK_out                     <= transceiverOb.cpll_locked;
 
-        REFCLK0P                        =>      REFCLK0P,
-        REFCLK0N                        =>      REFCLK0N,
-        REFCLK1P                        =>      REFCLK1P,
-        REFCLK1N                        =>      REFCLK1N,
+  P_ASSIGN : process (
+    CPLLRESET_in,
+    drpaddr,
+    drpdi,
+    drpen,
+    drpwe,
+    RXUSERRDY_in,
+    TXUSERRDY_in,
+    GTRXRESET_in,
+    GTTXRESET_in,
+    tx_data,
+    tx_charisk
+  ) is
+  begin
+    transceiverIb                    <= EVR_TRANSCEIVER_IB_INIT_C;
+    transceiverIb.tx_data            <= tx_data;
+    transceiverIb.tx_charisk         <= tx_charisk;
+    transceiverIb.drp_addr           <= drpaddr;
+    transceiverIb.drp_di             <= drpdi;
+    transceiverIb.drp_en             <= drpen;
+    transceiverIb.drp_we             <= drpwe;
 
-        --------------------------------- CPLL Ports -------------------------------
-        CPLLLOCK_out                    =>      CPLLLOCK_out,
-        CPLLRESET_in                    =>      CPLLRESET_in,
+    transceiverIb.sys_clk            <= sys_clk;
+    transceiverIb.sys_rst            <= reset;
+    transceiverIb.rx_rst             <= GTRXRESET_in;
+    transceiverIb.tx_rst             <= GTTXRESET_in;
+    transceiverIb.rx_usr_rdy         <= RXUSERRDY_in;
+    transceiverIb.tx_usr_rdy         <= TXUSERRDY_in;
+    transceiverIb.cpll_rst           <= CPLLRESET_in;
+  end process P_ASSIGN;
 
-        ---------------------------- Channel - DRP Ports  --------------------------
-        drpaddr                         =>      drpaddr,
-        drpclk                          =>      drpclk,
+  drpclk                           <= transceiverOb.drp_clk;
+  drpdo                            <= transceiverOb.drp_do;
+  drprdy                           <= transceiverOb.drp_rdy;
+  drpbsy                           <= transceiverOb.drp_bsy;
+  useDrpDlyAdj                     <= transceiverOb.dly_adj;
 
-        drpdi                           =>      drpdi,
-        drpdo                           =>      drpdo,
-        drpen                           =>      drpen,
-        drprdy                          =>      drprdy,
-        drpwe                           =>      drpwe,
-        drpbsy                          =>      drpbsy,
+  rxusrclk                         <= transceiverOb.rx_usr_clk;
+  rx_data                          <= transceiverOb.rx_data;
+  rx_charisk                       <= transceiverOb.rx_charisk;
+  rx_disperr                       <= transceiverOb.rx_disperr;
+  rx_notintable                    <= transceiverOb.rx_notintable;
 
-        useDrpDlyAdj                    =>      useDrpDlyAdj,
-
-        RXUSERRDY_in                    =>      RXUSERRDY_in,
-        ------------------------- Receive Ports - CDR Ports ------------------------
-        RXCDRLOCK_out                   =>      RXCDRLOCK_out,
-        ------------------ Receive Ports - FPGA RX Interface Ports -----------------
-        rxusrclk                        =>      rxusrclk,
-        rx_data                         =>      rxdata_i,
-        ------------------ Receive Ports - RX 8B/10B Decoder Ports -----------------
-        rx_disperr                      =>      rx_disperr,
-        rx_notintable                   =>      rx_notintable,
-        --------------------------- Receive Ports - RX AFE -------------------------
-        RXP                             =>      RXP,
-        ------------------------ Receive Ports - RX AFE Ports ----------------------
-        RXN                             =>      RXN,
-        ------------- Receive Ports - RX Initialization and Reset Ports ------------
-        GTRXRESET_in                    =>      GTRXRESET_in,
-        rx_charisk                      =>      rx_charisk,
-        -------------- Receive Ports -RX Initialization and Reset Ports ------------
-        RXRESETDONE_out                 =>      RXRESETDONE_out,
-        --------------------- TX Initialization and Reset Ports --------------------
-        GTTXRESET_in                    =>      GTTXRESET_in,
-        TXUSERRDY_in                    =>      TXUSERRDY_in,
-        ------------------ Transmit Ports - FPGA TX Interface Ports ----------------
-        txusrclk                        =>      txusrclk,
-        ---------------------- Transmit Ports - TX Buffer Ports --------------------
-        txbufstatus                     =>      txbufstatus_i,
-        ------------------ Transmit Ports - TX Data Path interface -----------------
-        tx_data                         =>      txdata_i,
-        ---------------- Transmit Ports - TX Driver and OOB signaling --------------
-        TXN                             =>      TXN,
-        TXP                             =>      TXP,
-        tx_charisk                      =>      tx_charisk,
-
-        reset                           =>      reset
-    );
+  txusrclk                         <= transceiverOb.tx_usr_clk;
+  txbufstatus_i                    <= transceiverOb.tx_bufstatus;
 
   i_dc_fifo : FIFO36E1
     generic map (
@@ -455,9 +363,7 @@ begin
   tied_to_ground_vec_i(63 downto 0)   <= (others => '0');
   tied_to_vcc_i                       <= '1';
 
-  recclk_out <= rxusrclk;
   recclk_rst <= cdcsync_reset_rxusrclk(0);
-  REFCLK_OUT <= refclk;
   REFCLK_RST <= cdcsync_reset_txusrclk(0);
   refclk <= txusrclk;
   
@@ -702,9 +608,6 @@ begin
     end if;
   end process;
   
-  rx_data <= rxdata_i(15 downto 0);
-  txdata_i <= (tied_to_ground_vec_i(47 downto 0) & tx_data);
-
   -- Scalers for clocks for debugging purposes to see which clocks
   -- are running using the ILA core
   
@@ -966,7 +869,7 @@ begin
       else
         cnt := cnt + 1;
       end if;
-      if cdcsync_reset_drpclk(0) = '1' or useDrpDlyAdj = '0'  then
+      if cdcsync_reset_drpclk(0) = '1' or useDrpDlyAdj /= DRP  then
         phase_acc_en <= '0';
         ph_state := init;
         phase := (others => '0');

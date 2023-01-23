@@ -16,6 +16,7 @@ use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 
 package evr_pkg is
+  attribute MARK_DEBUG         : string;
   type integer_array is array (integer range <>) of integer;
   constant EVENT_RATE          : integer := 125000000;
   constant MGT_RX_PRESCALER    : integer := 1024;

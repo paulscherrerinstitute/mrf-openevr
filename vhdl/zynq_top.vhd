@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
+use work.transceiver_pkg.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
@@ -44,17 +45,11 @@ architecture structure of zynq_top is
 
   component evr_dc is
       generic (
-    MARK_DEBUG_ENABLE            : string    := "FALSE";
-    -- MGT RX&TX signal pair polarity
-    RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-    TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
-    -- MGT reference clock selection
-    REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
+    MARK_DEBUG_ENABLE            : string    := "FALSE"
     );
   port (
     -- System bus clock
     sys_clk         : in std_logic;
-    refclk_out      : out std_logic; -- Reference clock output
     refclk_rst      : out std_logic;
     event_clk_out   : out std_logic; -- Event clock output, delay compensated
 				     -- and locked to EVG
@@ -91,17 +86,8 @@ architecture structure of zynq_top is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
 
-    -- MGT physical pins
-    
-    MGTREFCLK0_P : in std_logic;
-    MGTREFCLK0_N : in std_logic;
-    MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
-    MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
-
-    MGTTX2_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
-    MGTTX2_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
-    MGTRX2_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
-    MGTRX2_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
+    transceiverIb : out EvrTransceiverIbType;
+    transceiverOb : in  EvrTransceiverObType
     );
   end component;
 
@@ -138,6 +124,33 @@ architecture structure of zynq_top is
       
       reset             : in std_logic);
   end component;
+
+  component transceiver_gt is
+    generic
+      (
+        RX_POLARITY                  : std_logic := '0';
+        TX_POLARITY                  : std_logic := '0';
+        REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
+        );
+    port (
+      -- MGT interface
+      REFCLK0P        : in std_logic;   -- MGTREFCLK0_P
+      REFCLK0N        : in std_logic;   -- MGTREFCLK0_N
+      REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
+      REFCLK1N        : in std_logic;   -- MGTREFCLK1N
+  
+      RXN             : in    std_logic;
+      RXP             : in    std_logic;
+  
+      TXN             : out   std_logic;
+      TXP             : out   std_logic;
+  
+      -- fabric interface
+      transceiverIb   : in  EvrTransceiverIbType;
+      transceiverOb   : out EvrTransceiverObType
+      );
+  end component transceiver_gt;
+
 
   signal gnd     : std_logic;
   signal vcc     : std_logic;
@@ -192,7 +205,10 @@ architecture structure of zynq_top is
   signal databuf_irq_dc      : std_logic;
 
   signal topology_addr       : std_logic_vector(31 downto 0);
-
+  
+  signal transceiverIb       : EvrTransceiverIbType;
+  signal transceiverOb       : EvrTransceiverObType;
+  
   attribute MARK_DEBUG of event_rxd: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of dbus_rxd: signal is MARK_DEBUG_TOP_ENABLE;
   attribute MARK_DEBUG of databuf_rxd: signal is MARK_DEBUG_TOP_ENABLE;
@@ -216,15 +232,35 @@ begin
       I => PL_CLK,
       O => sys_clk);
 
+  i_mgt : transceiver_gt
+    generic map (
+      RX_POLARITY   => '0',
+      TX_POLARITY   => '0',
+      REFCLKSEL     => '1') -- 0 - REFCLK0, 1 - REFCLK1
+    port map (
+      REFCLK0P      => gnd,
+      REFCLK0N      => gnd,
+      REFCLK1P      => MGTREFCLK1_P,
+      REFCLK1N      => MGTREFCLK1_N,
+      
+      
+      RXN           => MGTRX2_N,
+      RXP           => MGTRX2_p,
+
+      TXN           => MGTTX2_N,
+      TXP           => MGTTX2_P,
+
+      transceiverIb => transceiverIb,
+      transceiverOb => transceiverOb);
+
+  refclk <= transceiverOb.tx_usr_clk;
+
   i_evr_dc : evr_dc
     generic map (
-      MARK_DEBUG_ENABLE => MARK_DEBUG_EVR_ENABLE,
-      RX_POLARITY => '0',
-      TX_POLARITY => '0',
-      refclksel => '1')
+      MARK_DEBUG_ENABLE => MARK_DEBUG_EVR_ENABLE
+      )
     port map (
       sys_clk => sys_clk,
-      refclk_out => refclk,
       refclk_rst => refclk_rst,
       event_clk_out => event_clk,
       event_clk_rst => event_clk_rst,
@@ -256,18 +292,9 @@ begin
       delay_comp_value => delay_comp_value,
       delay_comp_target => delay_comp_target,
       delay_comp_locked_out => delay_comp_locked,
-      
-      MGTREFCLK0_P => gnd,
-      MGTREFCLK0_N => gnd,
-      MGTREFCLK1_P => MGTREFCLK1_P,
-      MGTREFCLK1_N => MGTREFCLK1_N,
-      
-      
-      MGTRX2_N => MGTRX2_N,
-      MGTRX2_P => MGTRX2_p,
 
-      MGTTX2_N => MGTTX2_N,
-      MGTTX2_P => MGTTX2_P);
+      transceiverIb => transceiverIb,
+      transceiverOb => transceiverOb);
 
   i_databuf_dc : databuf_rx_dc
     generic map (

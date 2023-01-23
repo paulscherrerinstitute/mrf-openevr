@@ -67,3 +67,33 @@ For Artix-A7 fabrics with GTP transceivers:
   - add 'transceiver_gtp_a7.vhd' instead
   - use the 'gen_gtp_bufbypass.tcl' script to generate the GTP IP
     (source the script from the vivado TCL console)
+
+## Debugging
+The project has been migrated to using the so called 'Insertion Workflow'
+which has the following advantages:
+  - automatically create ILAs for different clock domains and assign
+    signals to the correct ILA
+  - preserves signal names in the GUI
+Using this workflow requires multiple steps
+### Mark Signals
+Interesting signals are already marked in the HDL; the predefined
+marks can be enabled/disabled with generics.
+### Synthesise Project
+As a first step you need to run Synthesis.
+### Final Selection of Signals
+Once synthesis is complete select 'Setup Debug'. Often there are signals
+without a clock domain (these are often found to be harwired to constants
+etc.). Use the GUI to remove those. During this step you may also add
+other nets to the selection. Once you are done you can start Implementation.
+You are then prompted if you want to save the modified design and you
+have to agree to that. A popup then prompts you to create or select a file
+where the constraints that were automatically generated for debugging
+should be stored. I always let Vivado create a new file which I call
+`dbg.xdc`.
+### NOTE
+Every time you change the HDL you'll have to go through the 'Final
+Selection' process again (i.e., do synthesis first, then select signals,
+then run implementation). Otherwise during implementation some signals
+may not be found and the process bombs out. Can be frustrating.
+However, this only happens if you tamper with the signals marked
+for debugging...
