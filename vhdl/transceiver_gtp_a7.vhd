@@ -71,10 +71,10 @@ architecture structure of transceiver_gt is
   signal sys_clk            : std_logic;
   signal reset              : std_logic;
 
-  signal cdcsync_txrst      : std_logic_vector(1 downto 0) := (others => '1');
-  attribute ASYNC_REG       of cdcsync_txrst : signal is "TRUE";
-  signal cdcsync_rxrst      : std_logic_vector(1 downto 0) := (others => '1');
-  attribute ASYNC_REG       of cdcsync_rxrst : signal is "TRUE";
+  signal evr_cdcsync_txrst      : std_logic_vector(1 downto 0) := (others => '1');
+  attribute ASYNC_REG       of evr_cdcsync_txrst : signal is "TRUE";
+  signal evr_cdcsync_rxrst      : std_logic_vector(1 downto 0) := (others => '1');
+  attribute ASYNC_REG       of evr_cdcsync_rxrst : signal is "TRUE";
 
 begin
   sys_clk               <= transceiverIb.sys_clk;
@@ -85,13 +85,13 @@ begin
   P_RST : process ( sys_clk ) is
   begin
     if ( rising_edge( sys_clk ) ) then
-      cdcsync_txrst <= transceiverIb.tx_rst & cdcsync_txrst(cdcsync_txrst'left downto 1);
-      cdcsync_rxrst <= transceiverIb.rx_rst & cdcsync_rxrst(cdcsync_rxrst'left downto 1);
+      evr_cdcsync_txrst <= shiftl( evr_cdcsync_txrst, transceiverIb.tx_rst );
+      evr_cdcsync_rxrst <= shiftl( evr_cdcsync_rxrst, transceiverIb.rx_rst );
     end if;
   end process P_RST;
 
-  txRst_i               <= (cdcsync_txrst(0) or reset);
-  rxRst_i               <= (cdcsync_rxrst(0) or reset);
+  txRst_i               <= (lbit( evr_cdcsync_txrst ) or reset);
+  rxRst_i               <= (lbit( evr_cdcsync_rxrst ) or reset);
 
   G_REF0 : if ( REFCLKSEL = '0' ) generate
     REFCLK_P <= REFCLK0P;

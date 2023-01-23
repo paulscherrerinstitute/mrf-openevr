@@ -367,4 +367,22 @@ package evr_pkg is
 
   type gtx_data is array (natural range <>) of std_logic_vector(39 downto 0);
 
+  -- helper functions to reduce typing
+  function shiftl(x : std_logic_vector; y : std_logic) return std_logic_vector;
+  function lbit(x : std_logic_vector) return std_logic;
+
 end evr_pkg;
+
+package body evr_pkg is
+
+  function shiftl(x : std_logic_vector; y : std_logic) return std_logic_vector is
+  begin
+    return x(x'left - 1 downto x'right) & y;
+  end function shiftl;
+
+  function lbit(x : std_logic_vector) return std_logic is
+  begin
+    return x(x'left);
+  end function lbit;
+
+end package body evr_pkg;

@@ -86,13 +86,13 @@ architecture structure of transceiver_dc is
 
   attribute ASYNC_REG         : string;
 
-  signal cdcsync_reset_txusrclk  : std_logic_vector(1 downto 0) := (others => '0');
-  signal cdcsync_reset_rxusrclk  : std_logic_vector(1 downto 0) := (others => '0');
-  signal cdcsync_reset_drpclk    : std_logic_vector(1 downto 0) := (others => '0');
+  signal evr_cdcsync_reset_txusrclk  : std_logic_vector(1 downto 0) := (others => '0');
+  signal evr_cdcsync_reset_rxusrclk  : std_logic_vector(1 downto 0) := (others => '0');
+  signal evr_cdcsync_reset_drpclk    : std_logic_vector(1 downto 0) := (others => '0');
 
-  attribute ASYNC_REG of cdcsync_reset_txusrclk  : signal is "TRUE";
-  attribute ASYNC_REG of cdcsync_reset_rxusrclk  : signal is "TRUE";
-  attribute ASYNC_REG of cdcsync_reset_drpclk    : signal is "TRUE";
+  attribute ASYNC_REG of evr_cdcsync_reset_txusrclk  : signal is "TRUE";
+  attribute ASYNC_REG of evr_cdcsync_reset_rxusrclk  : signal is "TRUE";
+  attribute ASYNC_REG of evr_cdcsync_reset_drpclk    : signal is "TRUE";
 
   signal vcc     : std_logic;
   signal gnd     : std_logic;
@@ -213,38 +213,40 @@ begin
   process ( txusrclk ) is
   begin
     if ( rising_edge( txusrclk ) ) then
-       cdcsync_reset_txusrclk <= reset & cdcsync_reset_txusrclk(cdcsync_reset_txusrclk'left downto 1);
+       evr_cdcsync_reset_txusrclk <= shiftl( evr_cdcsync_reset_txusrclk, reset );
     end if;
   end process;
 
   process ( rxusrclk ) is
   begin
     if ( rising_edge( rxusrclk ) ) then
-       cdcsync_reset_rxusrclk <= reset & cdcsync_reset_rxusrclk(cdcsync_reset_rxusrclk'left downto 1);
+       evr_cdcsync_reset_rxusrclk <= shiftl( evr_cdcsync_reset_rxusrclk, reset );
     end if;
   end process;
 
   process ( drpclk ) is
   begin
     if ( rising_edge( drpclk ) ) then
-       cdcsync_reset_drpclk <= (reset or not TXUSERRDY_in) & cdcsync_reset_drpclk(cdcsync_reset_drpclk'left downto 1);
+       evr_cdcsync_reset_drpclk <= shiftl( evr_cdcsync_reset_drpclk, (reset or not TXUSERRDY_in) );
     end if;
   end process;
 
   CPLLLOCK_out                     <= transceiverOb.cpll_locked;
 
   P_ASSIGN : process (
-    CPLLRESET_in,
+    tx_data,
+    tx_charisk,
     drpaddr,
     drpdi,
     drpen,
     drpwe,
-    RXUSERRDY_in,
-    TXUSERRDY_in,
+    sys_clk,
+    reset,
     GTRXRESET_in,
     GTTXRESET_in,
-    tx_data,
-    tx_charisk
+    RXUSERRDY_in,
+    TXUSERRDY_in,
+    CPLLRESET_in
   ) is
   begin
     transceiverIb                    <= EVR_TRANSCEIVER_IB_INIT_C;
@@ -363,8 +365,8 @@ begin
   tied_to_ground_vec_i(63 downto 0)   <= (others => '0');
   tied_to_vcc_i                       <= '1';
 
-  recclk_rst <= cdcsync_reset_rxusrclk(0);
-  REFCLK_RST <= cdcsync_reset_txusrclk(0);
+  recclk_rst <= lbit( evr_cdcsync_reset_rxusrclk );
+  REFCLK_RST <= lbit( evr_cdcsync_reset_txusrclk );
   refclk <= txusrclk;
   
   rx_powerdown <= '0';
@@ -385,15 +387,15 @@ begin
 				  rx_disperr, rx_notintable)
     variable beacon_cnt : std_logic_vector(2 downto 0) := "000";
     variable cnt : std_logic_vector(12 downto 0);
-    variable cdcsync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_link_ok : variable is "TRUE";
-    variable cdcsync_dc_mode : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_dc_mode : variable is "TRUE";
+    variable evr_cdcsync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_link_ok : variable is "TRUE";
+    variable evr_cdcsync_dc_mode : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_dc_mode : variable is "TRUE";
   begin
     if rising_edge(rxusrclk) then
-      cdcsync_link_ok  := link_ok & cdcsync_link_ok(cdcsync_link_ok'left downto 1);
-      cdcsync_dc_mode  := dc_mode & cdcsync_dc_mode(cdcsync_dc_mode'left downto 1);
-      link_ok_rxusr <= cdcsync_link_ok(0);
+      evr_cdcsync_link_ok  := shiftl( evr_cdcsync_link_ok, link_ok );
+      evr_cdcsync_dc_mode  := shiftl( evr_cdcsync_dc_mode, dc_mode );
+      link_ok_rxusr <= lbit( evr_cdcsync_link_ok );
       rx_error <= '0';
       if (rx_charisk(0) = '1' and rx_data(7) = '1') or
         rx_disperr /= "00" or rx_notintable /= "00" then
@@ -402,11 +404,11 @@ begin
       if beacon_cnt(beacon_cnt'high) = '1' then
         beacon_cnt := beacon_cnt - 1;
       end if;
-      if cdcsync_link_ok(0) = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
+      if lbit( evr_cdcsync_link_ok ) = '1' and rx_charisk(1) = '0' and rx_data(15 downto 8) = C_EVENT_BEACON then
         beacon_cnt := "111";
       end if;
       rx_beacon_i <= beacon_cnt(beacon_cnt'high);
-      if cdcsync_dc_mode(0) = '0' then
+      if lbit( evr_cdcsync_dc_mode ) = '0' then
         rx_beacon_i <= cnt(cnt'high);
       end if;
       if cnt(cnt'high) = '1' then
@@ -416,7 +418,7 @@ begin
     end if;
   end process;
 
-  link_ok_detection : process (refclk, link_ok, cdcsync_reset_txusrclk, rx_error_i)
+  link_ok_detection : process (refclk, link_ok, evr_cdcsync_reset_txusrclk, rx_error_i)
     variable link_ok_delay : std_logic_vector(19 downto 0) := (others => '0');
   begin
     rx_link_ok <= rx_link_ok_i;
@@ -425,7 +427,7 @@ begin
       if link_ok_delay(link_ok_delay'high) = '0' then
         link_ok_delay := link_ok_delay + 1;
       end if;
-      if cdcsync_reset_txusrclk(0) = '1' or link_ok = '0' or rx_error_i = '1' then
+      if lbit( evr_cdcsync_reset_txusrclk ) = '1' or link_ok = '0' or rx_error_i = '1' then
         link_ok_delay := (others => '0');
       end if;
     end if;
@@ -435,12 +437,12 @@ begin
 				 rx_disperr, CPLLLOCK_out)
     variable prescaler : std_logic_vector(14 downto 0);
     variable count : std_logic_vector(3 downto 0);
-    variable cdcsync_rx_error : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_rx_error : variable is "TRUE";
+    variable evr_cdcsync_rx_error : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_rx_error : variable is "TRUE";
     variable loss_lock : std_logic;
     variable rx_error_count : std_logic_vector(5 downto 0);
-    variable cdcsync_reset : std_logic_vector(1 downto 0);
-    attribute ASYNC_REG of cdcsync_reset : variable is "TRUE";
+    variable evr_cdcsync_reset : std_logic_vector(1 downto 0);
+    attribute ASYNC_REG of evr_cdcsync_reset : variable is "TRUE";
     attribute MARK_DEBUG of rx_error_count : variable is MARK_DEBUG_ENABLE;
     attribute MARK_DEBUG of loss_lock      : variable is MARK_DEBUG_ENABLE;
     attribute MARK_DEBUG of prescaler      : variable is MARK_DEBUG_ENABLE;
@@ -477,7 +479,7 @@ begin
 
 	loss_lock := rx_error_count(5);
 
-        if cdcsync_rx_error(0) = '1' then
+        if lbit( evr_cdcsync_rx_error ) = '1' then
           if rx_error_count(5) = '0' then
             rx_error_count := rx_error_count - 1;
           end if;
@@ -495,32 +497,28 @@ begin
         end if;
       end if;
 
-      rx_error_i <= cdcsync_rx_error(0);
+      rx_error_i <= lbit( evr_cdcsync_rx_error );
 
-      cdcsync_rx_error := rx_error & cdcsync_rx_error(cdcsync_rx_error'left downto 1);
+      evr_cdcsync_rx_error := shiftl( evr_cdcsync_rx_error, rx_error );
       
-      if cdcsync_reset(0) = '1' then
+      if lbit( evr_cdcsync_reset ) = '1' then
         count := "1111";
       end if;
 
       -- Synchronize asynchronous resets
-      cdcsync_reset(0) := cdcsync_reset(1);
-      cdcsync_reset(1) := '0';
-      if reset = '1' or CPLLLOCK_out = '0' then
-        cdcsync_reset(1) := '1';
-      end if;
+      evr_cdcsync_reset := shiftl( evr_cdcsync_reset, ( reset or not CPLLLOCK_out ) );
     end if;
   end process;
 
   reg_dbus_data : process (event_clk, rx_link_ok_i, rx_data, databuf_rxd_i, databuf_rx_k_i)
     variable even : std_logic;
-    variable cdcsync_link_ok_dly: std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_link_ok_dly : variable is "TRUE";
+    variable evr_cdcsync_link_ok_dly: std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_link_ok_dly : variable is "TRUE";
   begin
     databuf_rxd <= databuf_rxd_i;
     databuf_rx_k <= databuf_rx_k_i;
     if rising_edge(event_clk) then
-      cdcsync_link_ok_dly := rx_link_ok_i & cdcsync_link_ok_dly(cdcsync_link_ok_dly'left downto 1);
+      evr_cdcsync_link_ok_dly := shiftl( evr_cdcsync_link_ok_dly, rx_link_ok_i );
       if databuf_rx_mode = '0' or even = '0' then
 	dbus_rxd <= fifo_do(7 downto 0);
       end if;
@@ -536,7 +534,7 @@ begin
 
       databuf_rx_ena <= even;
       
-      if cdcsync_link_ok_dly(0) = '0' then
+      if lbit( evr_cdcsync_link_ok_dly ) = '0' then
 	databuf_rxd_i <= (others => '0');
 	databuf_rx_k_i <= '0';
 	dbus_rxd <= (others => '0');
@@ -544,7 +542,7 @@ begin
 
       even := not even;
       event_rxd <= fifo_do(15 downto 8);
-      if cdcsync_link_ok_dly(0) = '0' or fifo_dop(1) = '1' or event_clk_rst = '1' then
+      if lbit( evr_cdcsync_link_ok_dly ) = '0' or fifo_dop(1) = '1' or event_clk_rst = '1' then
 	event_rxd <= (others => '0');
 	even := '0';
       end if;
@@ -554,7 +552,7 @@ begin
   rx_data_align_detect : process (rxusrclk, reset, rx_charisk, rx_data,
 				  rx_clear_viol_usrclk)
   begin
-    if cdcsync_reset_rxusrclk(0) = '1' or rx_clear_viol_usrclk = '1' then
+    if lbit( evr_cdcsync_reset_rxusrclk ) = '1' or rx_clear_viol_usrclk = '1' then
       align_error <= '0';
     elsif rising_edge(rxusrclk) then
       align_error <= '0';
@@ -565,8 +563,8 @@ begin
   end process;
 
   violation_flag : process (sys_clk, rx_clear_viol, link_ok_rxusr, rx_vio_usrclk)
-    variable cdcsync_vio : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_vio : variable is "TRUE";
+    variable evr_cdcsync_vio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_vio : variable is "TRUE";
     variable vio_in : std_logic;
   begin
     vio_in := rx_vio_usrclk or not link_ok_rxusr;
@@ -574,28 +572,28 @@ begin
       if rx_clear_viol = '1' then
         rx_violation <= '0';
       end if;
-      if cdcsync_vio(0) = '1' then
+      if lbit( evr_cdcsync_vio ) = '1' then
         rx_violation <= '1';
       end if;
-      cdcsync_vio := vio_in & cdcsync_vio(cdcsync_vio'left downto 1);
+      evr_cdcsync_vio := shiftl( evr_cdcsync_vio, vio_in );
     end if;
   end process;
   
   violation_detect : process (rxusrclk, rx_clear_viol,
 			      rx_disperr, rx_notintable, link_ok)
-    variable cdcsync_clrvio : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of cdcsync_clrvio : variable is "TRUE";
+    variable evr_cdcsync_clrvio : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_clrvio : variable is "TRUE";
   begin
-    rx_clear_viol_usrclk <= cdcsync_clrvio(0);
+    rx_clear_viol_usrclk <= lbit( evr_cdcsync_clrvio );
     if rising_edge(rxusrclk) then
       if rx_disperr /= "00" or
         rx_notintable /= "00" then
 	rx_vio_usrclk <= '1';
-      elsif cdcsync_clrvio(0) = '1' then
+      elsif lbit( evr_cdcsync_clrvio ) = '1' then
         rx_vio_usrclk <= '0';
       end if;
 
-      cdcsync_clrvio := rx_clear_viol & cdcsync_clrvio(cdcsync_clrvio'left downto 1);
+      evr_cdcsync_clrvio := shiftl( evr_cdcsync_clrvio, rx_clear_viol );
     end if;
   end process;
 
@@ -619,7 +617,7 @@ begin
     cntHi := cnt(cnt'high);
     if rising_edge(refclk) then
       cnt := cnt + 1;
-      if cdcsync_reset_txusrclk(0) = '1' then
+      if lbit( evr_cdcsync_reset_txusrclk ) = '1' then
         cnt := (others => '0');
       end if;
     end if;
@@ -661,7 +659,7 @@ begin
     cntHi := cnt(cnt'high);
     if rising_edge(rxusrclk) then
       cnt := cnt + 1;
-      if cdcsync_reset_rxusrclk(0) = '1' then
+      if lbit( evr_cdcsync_reset_rxusrclk ) = '1' then
         cnt := (others => '0');
       end if;
     end if;
@@ -675,7 +673,7 @@ begin
     cntHi := cnt(cnt'high);
     if rising_edge(txusrclk) then
       cnt := cnt + 1;
-      if cdcsync_reset_txusrclk(0) = '1' then
+      if lbit( evr_cdcsync_reset_txusrclk ) = '1' then
         cnt := (others => '0');
       end if;
     end if;
@@ -718,7 +716,7 @@ begin
 
   transmit_data : process (txusrclk, tx_fifo_do, tx_fifo_empty, dbus_txd,
                            databuf_txd, databuf_tx_k, databuf_tx_mode, dc_mode,
-                           cdcsync_reset_txusrclk)
+                           evr_cdcsync_reset_txusrclk)
     variable even       : std_logic_vector(1 downto 0) := "00";
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
@@ -762,7 +760,7 @@ begin
       even0 := even(0);
       even := even + 1;
       beacon_cnt := rx_beacon_i & beacon_cnt(beacon_cnt'high downto 1);
-      if cdcsync_reset_txusrclk(0) = '1' then
+      if lbit( evr_cdcsync_reset_txusrclk ) = '1' then
         fifo_pend := '0';
       end if;
     end if;
@@ -811,7 +809,7 @@ begin
   end process;
   
   tx_fifo_dip <= (others => '0');
-  tx_fifo_rst <= cdcsync_reset_txusrclk(0);
+  tx_fifo_rst <= lbit( evr_cdcsync_reset_txusrclk );
   
   process (drpclk, txbufstatus_i, TXUSERRDY_in)
     type state is (init, init_delay, acq_bufstate, deldec, delinc, locked);
@@ -833,7 +831,7 @@ begin
       if cnt(cnt'high) = '1' then
         case ph_state is
           when init =>
-            if cdcsync_reset_drpclk(0) = '0' then
+            if lbit( evr_cdcsync_reset_drpclk ) = '0' then
               ph_state := init_delay;
             end if;
           when init_delay =>
@@ -869,7 +867,7 @@ begin
       else
         cnt := cnt + 1;
       end if;
-      if cdcsync_reset_drpclk(0) = '1' or useDrpDlyAdj /= DRP  then
+      if lbit( evr_cdcsync_reset_drpclk ) = '1' or useDrpDlyAdj /= DRP  then
         phase_acc_en <= '0';
         ph_state := init;
         phase := (others => '0');
@@ -957,7 +955,7 @@ begin
         end if;
         drp_state := next_state;
       end if;
-      if cdcsync_reset_drpclk(0) = '1' then
+      if lbit( evr_cdcsync_reset_drpclk ) = '1' then
         drp_state := idle;
         rdy_wait := '0';
       end if;
