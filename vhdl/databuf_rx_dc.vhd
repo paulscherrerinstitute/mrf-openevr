@@ -429,7 +429,7 @@ begin
   size_data_out(15 downto 0) <= size_data_int(15 downto 0);
 
   reception : process (event_clk, databuf_data, databuf_k, databuf_ena,
-		       reset, delay_comp_cyc)
+		       reset, delay_comp_cyc, rx_flag_i, cs_flag_i, ov_flag_i)
     variable data_ena       : std_logic;
     variable address_cycle  : std_logic;
     variable running        : std_logic;
