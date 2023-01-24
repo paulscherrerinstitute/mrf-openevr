@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------
 --
---  File        : transceiver_dc_gtx.vhd
+--  File        : transceiver_dc_k7.vhd
 --
 --  Title       : Event Transceiver Multi-Gigabit Transceiver for Xilinx K7
 --
@@ -16,45 +16,94 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
+use work.evr_pkg.all;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 
-use work.transceiver_pkg.all;
-
-entity transceiver_dc_gt is
+entity transceiver_gt is
   generic
     (
       RX_POLARITY                  : std_logic := '0';
       TX_POLARITY                  : std_logic := '0';
       REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
       );
-  port
-    (
-      sys_clk                      : in  std_logic;
+  port (
+    sys_clk         : in std_logic;   -- system bus clock
+    REFCLK0P        : in std_logic;   -- MGTREFCLK0_P
+    REFCLK0N        : in std_logic;   -- MGTREFCLK0_N
+    REFCLK1P        : in std_logic;   -- MGTREFCLK1_P
+    REFCLK1N        : in std_logic;   -- MGTREFCLK1N
 
-      ib                           : in  transceiver_ib_type;
-      ob                           : out transceiver_ob_type;
+    rxusrclk        : out std_logic;
+    txusrclk        : out std_logic;
 
-      -- physical signals
-      REFCLK0P                     : in  std_logic;
-      REFCLK0N                     : in  std_logic;
-      REFCLK1P                     : in  std_logic;
-      REFCLK1N                     : in  std_logic;
-      
-      rxp                          : in  std_logic;
-      rxn                          : in  std_logic;
+    -- RX Datapath signals
+    RXUSERRDY_in    : in  std_logic;
+    rx_data         : out std_logic_vector(63 downto 0);      
+    rx_charisk      : out std_logic_vector(1 downto 0);
+    rx_disperr      : out std_logic_vector(1 downto 0);
+    rx_notintable   : out std_logic_vector(1 downto 0);
 
-      txp                          : out std_logic;
-      txn                          : out std_logic
+    -- TX Datapath signals
+    tx_data         : in  std_logic_vector(63 downto 0);
+    txbufstatus     : out std_logic_vector(1 downto 0);  
+    tx_charisk      : in  std_logic_vector(1 downto 0);
 
-      );
-end entity transceiver_dc_gt;
+    -- DRP
+    drpclk          : out std_logic;
+    drpaddr         : in  std_logic_vector(8 downto 0);
+    drpdi           : in  std_logic_vector(15 downto 0);
+    drpdo           : out std_logic_vector(15 downto 0);
+    drpen           : in  std_logic;
+    drpwe           : in  std_logic;
+    drprdy          : out std_logic;
+    drpbsy          : out std_logic := '0';
 
-architecture structure of transceiver_dc_gt is
-  constant RX_DFE_KL_CFG2_IN : bit_vector :=  X"3010D90C";
-  constant PMA_RSV_IN        : bit_vector :=  x"00018480";
-  constant PCS_RSVD_ATTR_IN  : bit_vector :=  X"000000000002";
+    useDrpDlyAdj    : out std_logic;
 
+    CPLLRESET_in    : in  std_logic;
+    CPLLLOCK_out    : out std_logic;
+    GTRXRESET_in    : in  std_logic;
+    GTTXRESET_in    : in  std_logic;
+    RXCDRLOCK_out   : out std_logic;
+    RXRESETDONE_out : out std_logic;
+    TXUSERRDY_in    : in  std_logic;
+    
+    reset           : in    std_logic;
+
+    RXN             : in    std_logic;
+    RXP             : in    std_logic;
+
+    TXN             : out   std_logic;
+    TXP             : out   std_logic
+    );
+end transceiver_gt;
+
+architecture structure of transceiver_gt is
+  constant RX_DFE_KL_CFG2_IN            : bit_vector :=  X"3010D90C";
+  constant PMA_RSV_IN                   : bit_vector :=  x"00018480";
+  constant PCS_RSVD_ATTR_IN             : bit_vector :=  X"000000000002";
+
+  signal rxusrclk_i    : std_logic;
+  signal txusrclk_i    : std_logic;
+  signal drpclk_i      : std_logic;
+
+-- local
+  signal vcc     : std_logic := '1';
+  signal gnd     : std_logic := '0';
+  signal gnd_vec : std_logic_vector(31 downto 0) := (others => '0');
+
+  signal REFCLK0       : std_logic;
+  signal REFCLK1       : std_logic;
+  signal tx_outclk     : std_logic;
+
+  signal rxcharisk_float_i                :   std_logic_vector(5 downto 0);
+  signal rxdisperr_float_i                :   std_logic_vector(5 downto 0);
+  signal rxnotintable_float_i             :   std_logic_vector(5 downto 0);
+
+  signal txkerr_float_i                   :   std_logic_vector(5 downto 0);
+  signal txrundisp_float_i                :   std_logic_vector(5 downto 0);
+ 
   signal CPLLFBCLKLOST_out : std_logic;
   signal CPLLREFCLKSEL_in : std_logic_vector(2 downto 0);
   signal CPLLREFCLKLOST_out : std_logic;
@@ -77,6 +126,8 @@ architecture structure of transceiver_dc_gt is
   signal RXDFELPMRESET_in : std_logic;
   signal RXOUTCLK_out : std_logic;
   signal RXOUTCLKPCS_out : std_logic; 
+  signal RXPCSRESET_in : std_logic;
+  signal RXPMARESET_in : std_logic;
   signal RXLPMEN_in : std_logic;
   signal RXPOLARITY_in : std_logic;
   signal RXSLIDE_in : std_logic;
@@ -95,38 +146,8 @@ architecture structure of transceiver_dc_gt is
   signal TXCHARISK_in : std_logic_vector(1 downto 0);
   signal TXRESETDONE_out : std_logic;
   signal TXPOLARITY_in : std_logic;
-  signal REFCLK0 : std_logic;
-  signal REFCLK1 : std_logic;
-  signal RXPCSRESET_in : std_logic;
-  signal RXPMARESET_in : std_logic;
-  signal RXEQMIX       : std_logic_vector(1 downto 0);
-
-  signal txusrclk_i    : std_logic;
-  signal txoutclk      : std_logic;
-  signal rxusrclk      : std_logic;
-  
-  signal rxchariscomma_float_i            :   std_logic_vector(5 downto 0);
-  signal rxcharisk_float_i                :   std_logic_vector(5 downto 0);
-  signal rxdisperr_float_i                :   std_logic_vector(5 downto 0);
-  signal rxnotintable_float_i             :   std_logic_vector(5 downto 0);
-  signal rxrundisp_float_i                :   std_logic_vector(5 downto 0);
-  signal rxdata_float_i                   :   std_logic_vector(63 downto 16);
-  signal txdata_i                         :   std_logic_vector(63 downto 0);
-  signal drpclk                           :   std_logic;
-
-  signal gnd           : std_logic;
-  signal vcc           : std_logic;
-  signal gnd_vec       : std_logic_vector(7 downto 0);
-  signal tied_to_ground_vec_i : std_logic_vector(63 downto 0);
-  signal tied_to_ground_i     : std_logic;
-  begin
-  
-
-  -- this module is not driving DRP itself (wizard-generated ones might!)
-  ob.drpbsy     <= '0';
-  drpclk        <= sys_clk;
-  ob.drpclk     <= drpclk;
-  ob.txdlyadjen <= '1';
+ 
+begin
 
   gtxe2_X0Y0_i :GTXE2_CHANNEL
     generic map
@@ -411,13 +432,13 @@ architecture structure of transceiver_dc_gt is
     (
         --------------------------------- CPLL Ports -------------------------------
         CPLLFBCLKLOST                   =>      CPLLFBCLKLOST_out,
-        CPLLLOCK                        =>      ob.cpll_locked,
+        CPLLLOCK                        =>      CPLLLOCK_out,
         CPLLLOCKDETCLK                  =>      sys_clk,
         CPLLLOCKEN                      =>      vcc,
         CPLLPD                          =>      gnd,
         CPLLREFCLKLOST                  =>      CPLLREFCLKLOST_out,
         CPLLREFCLKSEL                   =>      CPLLREFCLKSEL_in,
-        CPLLRESET                       =>      ib.cpll_reset,
+        CPLLRESET                       =>      CPLLRESET_in,
         GTRSVD                          =>      "0000000000000000",
         PCSRSVDIN                       =>      "0000000000000000",
         PCSRSVDIN2                      =>      "00000",
@@ -436,13 +457,13 @@ architecture structure of transceiver_dc_gt is
         GTSOUTHREFCLK0                  =>      gnd,
         GTSOUTHREFCLK1                  =>      gnd,
         ---------------------------- Channel - DRP Ports  --------------------------
-        DRPADDR                         =>      ib.drpaddr,
-        DRPCLK                          =>      drpclk,
-        DRPDI                           =>      ib.drpdi,
-        DRPDO                           =>      ob.drpdo,
-        DRPEN                           =>      ib.drpen,
-        DRPRDY                          =>      ob.drprdy,
-        DRPWE                           =>      ib.drpwe,
+        DRPADDR                         =>      drpaddr,
+        DRPCLK                          =>      drpclk_i,
+        DRPDI                           =>      drpdi,
+        DRPDO                           =>      drpdo,
+        DRPEN                           =>      drpen,
+        DRPRDY                          =>      drprdy,
+        DRPWE                           =>      drpwe,
        ------------------------------- Clocking Ports -----------------------------
         GTREFCLKMONITOR                 =>      open,
         QPLLCLK                         =>      gnd,
@@ -466,7 +487,7 @@ architecture structure of transceiver_dc_gt is
         SETERRSTATUS                    =>      gnd,
         --------------------- RX Initialization and Reset Ports --------------------
         EYESCANRESET                    =>      gnd,
-        RXUSERRDY                       =>      ib.rxusrrdy,
+        RXUSERRDY                       =>      RXUSERRDY_in,
         -------------------------- RX Margin Analysis Ports ------------------------
         EYESCANDATAERROR                =>      open,
         EYESCANMODE                     =>      gnd,
@@ -474,7 +495,7 @@ architecture structure of transceiver_dc_gt is
         ------------------------- Receive Ports - CDR Ports ------------------------
         RXCDRFREQRESET                  =>      gnd,
         RXCDRHOLD                       =>      gnd,
-        RXCDRLOCK                       =>      ob.rxcdrlocked,
+        RXCDRLOCK                       =>      RXCDRLOCK_out,
         RXCDROVRDEN                     =>      gnd,
         RXCDRRESET                      =>      gnd,
         RXCDRRESETRSV                   =>      gnd,
@@ -483,11 +504,10 @@ architecture structure of transceiver_dc_gt is
         ---------- Receive Ports - FPGA RX Interface Datapath Configuration --------
         RX8B10BEN                       =>      vcc,
         ------------------ Receive Ports - FPGA RX Interface Ports -----------------
-        RXUSRCLK                        =>      rxusrclk,
-        RXUSRCLK2                       =>      rxusrclk,
+        RXUSRCLK                        =>      rxusrclk_i,
+        RXUSRCLK2                       =>      rxusrclk_i,
         ------------------ Receive Ports - FPGA RX interface Ports -----------------
-        RXDATA(63 downto 16)            =>      rxdata_float_i,
-        RXDATA(15 downto  0)            =>      ob.rxdata,
+        RXDATA                          =>      rx_data,
         ------------------- Receive Ports - Pattern Checker Ports ------------------
         RXPRBSERR                       =>      open,
         RXPRBSSEL                       =>      gnd_vec(2 downto 0),
@@ -499,9 +519,9 @@ architecture structure of transceiver_dc_gt is
         RXDFEXYDOVRDEN                  =>      gnd,
         ------------------ Receive Ports - RX 8B/10B Decoder Ports -----------------
         RXDISPERR(7 downto 2)           =>      rxdisperr_float_i,
-        RXDISPERR(1 downto 0)           =>      ob.rxdisperr,
+        RXDISPERR(1 downto 0)           =>      rx_disperr,
         RXNOTINTABLE(7 downto 2)        =>      rxnotintable_float_i,
-        RXNOTINTABLE(1 downto 0)        =>      ob.rxnotintable,
+        RXNOTINTABLE(1 downto 0)        =>      rx_notintable,
         --------------------------- Receive Ports - RX AFE -------------------------
         GTXRXP                          =>      RXP,
         ------------------------ Receive Ports - RX AFE Ports ----------------------
@@ -585,7 +605,7 @@ architecture structure of transceiver_dc_gt is
         --------------------- Receive Ports - RX Gearbox Ports  --------------------
         RXGEARBOXSLIP                   =>      gnd,
         ------------- Receive Ports - RX Initialization and Reset Ports ------------
-        GTRXRESET                       =>      ib.gtrxreset,
+        GTRXRESET                       =>      GTRXRESET_in,
         RXOOBRESET                      =>      gnd,
         RXPCSRESET                      =>      RXPCSRESET_in,
         RXPMARESET                      =>      RXPMARESET_in,
@@ -606,11 +626,11 @@ architecture structure of transceiver_dc_gt is
         ------------------- Receive Ports - RX8B/10B Decoder Ports -----------------
         RXCHARISCOMMA                   =>      open,
         RXCHARISK(7 downto 2)           =>      rxcharisk_float_i,
-        RXCHARISK(1 downto 0)           =>      ob.rxcharisk,
+        RXCHARISK(1 downto 0)           =>      rx_charisk,
         ------------------ Receive Ports - Rx Channel Bonding Ports ----------------
         RXCHBONDI                       =>      "00000",
         -------------- Receive Ports -RX Initialization and Reset Ports ------------
-        RXRESETDONE                     =>      ob.rxresetdone,
+        RXRESETDONE                     =>      RXRESETDONE_out,
         -------------------------------- Rx AFE Ports ------------------------------
         RXQPIEN                         =>      gnd,
         RXQPISENN                       =>      open,
@@ -627,9 +647,9 @@ architecture structure of transceiver_dc_gt is
         TXQPIWEAKPUP                    =>      gnd,
         --------------------- TX Initialization and Reset Ports --------------------
         CFGRESET                        =>      gnd,
-        GTTXRESET                       =>      ib.gttxreset,
+        GTTXRESET                       =>      GTTXRESET_in,
         PCSRSVDOUT                      =>      open,
-        TXUSERRDY                       =>      ib.txusrrdy,
+        TXUSERRDY                       =>      TXUSERRDY_in,
         ---------------------- Transceiver Reset Mode Operation --------------------
         GTRESETSEL                      =>      gnd,
         RESETOVRD                       =>      gnd,
@@ -663,7 +683,7 @@ architecture structure of transceiver_dc_gt is
         TXPHINITDONE                    =>      open,
         TXPHOVRDEN                      =>      vcc,
         ---------------------- Transmit Ports - TX Buffer Ports --------------------
-        TXBUFSTATUS                     =>      ob.txbufstatus,
+        TXBUFSTATUS                     =>      txbufstatus,
         --------------- Transmit Ports - TX Configurable Driver Ports --------------
         TXBUFDIFFCTRL                   =>      "100",
         TXDEEMPH                        =>      gnd,
@@ -673,19 +693,19 @@ architecture structure of transceiver_dc_gt is
         TXMAINCURSOR                    =>      "0000000",
         TXPISOPD                        =>      gnd,
         ------------------ Transmit Ports - TX Data Path interface -----------------
-        TXDATA                          =>      txdata_i,
+        TXDATA                          =>      tx_data,
         ---------------- Transmit Ports - TX Driver and OOB signaling --------------
         GTXTXN                          =>      TXN,
         GTXTXP                          =>      TXP,
         ----------- Transmit Ports - TX Fabric Clock Output Control Ports ----------
-        TXOUTCLK                        =>      txoutclk,
+        TXOUTCLK                        =>      tx_outclk,
         TXOUTCLKFABRIC                  =>      TXOUTCLKFABRIC_out,
         TXOUTCLKPCS                     =>      TXOUTCLKPCS_out,
         TXOUTCLKSEL                     =>      "011",
         TXRATEDONE                      =>      open,
         --------------------- Transmit Ports - TX Gearbox Ports --------------------
         TXCHARISK(7 downto 2)           =>      gnd_vec(5 downto 0),
-        TXCHARISK(1 downto 0)           =>      ib.txcharisk,
+        TXCHARISK(1 downto 0)           =>      tx_charisk,
         TXGEARBOXREADY                  =>      open,
         TXHEADER                        =>      gnd_vec(2 downto 0),
         TXSEQUENCE                      =>      gnd_vec(6 downto 0),
@@ -714,6 +734,7 @@ architecture structure of transceiver_dc_gt is
 
     );
 
+
   refclk_select_1: 
   if REFCLKSEL = '1' generate
     REFCLK0 <= '0';
@@ -741,27 +762,19 @@ architecture structure of transceiver_dc_gt is
     REFCLK1 <= '0';
     CPLLREFCLKSEL_in <= "001"; -- MGTREFCLK0
   end generate;
-  
-  txdata_i <= (tied_to_ground_vec_i(47 downto 0) & ib.txdata);
 
-  vcc <= '1';
-  gnd <= '0';
-  gnd_vec <= (others => '0');
-  tied_to_ground_i                    <= '0';
-  tied_to_ground_vec_i(63 downto 0)   <= (others => '0');
-  RXEQMIX <= "01";
-  RXDFELPMRESET_in <= ib.mgtreset;
+  RXDFELPMRESET_in <= reset;
   RXDLYEN_in <= '0';
-  RXDLYSRESET_in <= ib.mgtreset;
-  RXPCSRESET_in <= ib.mgtreset;
+  RXDLYSRESET_in <= reset;
+  RXPCSRESET_in <= reset;
   RXPHALIGN_in <= '0';
   RXPHALIGNEN_in <= '0';
-  RXPHDLYRESET_in <= ib.mgtreset;
-  RXPMARESET_in <= ib.mgtreset;
+  RXPHDLYRESET_in <= reset;
+  RXPMARESET_in <= reset;
   RXPOLARITY_in <= RX_POLARITY;
   RXSLIDE_in <= '0';
   TXDLYEN_in <= '0';
-  TXDLYSRESET_in <= ib.mgtreset;
+  TXDLYSRESET_in <= reset;
   TXPCSRESET_in <= '0';
   TXPHALIGN_in <= '0';
   TXPHALIGNEN_in <= '0';
@@ -769,18 +782,23 @@ architecture structure of transceiver_dc_gt is
   TXPHINIT_in <= '0';
   TXPMARESET_in <= '0';
   TXPOLARITY_in <= TX_POLARITY;
-  
+ 
   i_bufg0: BUFG
     port map (
-      O => rxusrclk,
+      O => rxusrclk_i,
       I => RXOUTCLK_out);
 
   i_bufg1: BUFG
     port map (
       O => txusrclk_i,
-      I => txoutclk);
-      
-  ob.rxrecclk <= rxusrclk;
-  ob.txusrclk <= txusrclk_i;
-  
+      I => tx_outclk);
+
+  rxusrclk <= rxusrclk_i;
+  txusrclk <= txusrclk_i;
+
+  drpclk_i <= txusrclk_i;
+  drpclk   <= drpclk_i;
+ 
+  useDrpDlyAdj <= '1';
+  drpbsy       <= '0';
 end architecture structure;

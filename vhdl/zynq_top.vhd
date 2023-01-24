@@ -5,9 +5,12 @@ use ieee.std_logic_unsigned.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
-use work.transceiver_pkg.all;
-
 entity zynq_top is
+  generic (
+    MARK_DEBUG_TOP_ENABLE : string := "TRUE";
+    MARK_DEBUG_EVR_ENABLE : string := "TRUE";
+    MARK_DEBUG_BUF_ENABLE : string := "FALSE"
+  );
   port (
     PL_CLK       : in std_logic;
     PL_LED1      : out std_logic;  -- Carrier D6
@@ -36,8 +39,12 @@ end zynq_top;
 
 architecture structure of zynq_top is
 
+  attribute ASYNC_REG        : string;
+  attribute MARK_DEBUG       : string;
+
   component evr_dc is
       generic (
+    MARK_DEBUG_ENABLE            : string    := "FALSE";
     -- MGT RX&TX signal pair polarity
     RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
     TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
@@ -48,8 +55,10 @@ architecture structure of zynq_top is
     -- System bus clock
     sys_clk         : in std_logic;
     refclk_out      : out std_logic; -- Reference clock output
+    refclk_rst      : out std_logic;
     event_clk_out   : out std_logic; -- Event clock output, delay compensated
 				     -- and locked to EVG
+    event_clk_rst   : out std_logic;
 
     -- Receiver side connections
     event_rxd       : out std_logic_vector(7 downto 0);  -- Received event code
@@ -82,13 +91,24 @@ architecture structure of zynq_top is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
 
-    -- MGT
-    mgtIb           : in  transceiver_ob_type;
-    mgtOb           : out transceiver_ib_type
+    -- MGT physical pins
+    
+    MGTREFCLK0_P : in std_logic;
+    MGTREFCLK0_N : in std_logic;
+    MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
+    MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
+
+    MGTTX2_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
+    MGTTX2_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
+    MGTRX2_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
+    MGTRX2_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
     );
   end component;
 
   component databuf_rx_dc is
+    generic (
+      MARK_DEBUG_ENABLE : string    := "FALSE"
+    );
     port (
       -- Memory buffer RAMB read interface
       data_out          : out std_logic_vector(31 downto 0);
@@ -119,26 +139,16 @@ architecture structure of zynq_top is
       reset             : in std_logic);
   end component;
 
-  COMPONENT Ila_0
-    PORT (
-      clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
-      );
-  END COMPONENT;
-
-  signal TRIG0 : std_logic_vector(255 downto 0);
-
   signal gnd     : std_logic;
   signal vcc     : std_logic;
   
   signal sys_clk : std_logic;
   signal sys_reset : std_logic;
 
-  signal refclk  : std_logic;
-  signal event_clk : std_logic;
+  signal refclk          : std_logic;
+  signal refclk_rst      : std_logic;
+  signal event_clk       : std_logic;
+  signal event_clk_rst   : std_logic;
 
   signal dc_mode         : std_logic;
 
@@ -169,7 +179,6 @@ architecture structure of zynq_top is
   signal delay_comp_value   : std_logic_vector(31 downto 0);
   signal delay_comp_target  : std_logic_vector(31 downto 0);
 
-  signal dc_status             : std_logic_vector(31 downto 0);
   signal delay_comp_rx_status : std_logic_vector(31 downto 0);
 
   signal databuf_dc_addr     : std_logic_vector(10 downto 2);
@@ -184,54 +193,41 @@ architecture structure of zynq_top is
 
   signal topology_addr       : std_logic_vector(31 downto 0);
 
-  signal mgtIb               : transceiver_ib_type;
-  signal mgtOb               : transceiver_ob_type;
+  attribute MARK_DEBUG of event_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of dbus_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rxd: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_k: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_ena: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of databuf_rx_mode: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_link_ok: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_violation: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of rx_clear_viol: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_locked: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_update: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_value: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_target: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of delay_comp_rx_status: signal is MARK_DEBUG_TOP_ENABLE;
+  attribute MARK_DEBUG of topology_addr: signal is MARK_DEBUG_TOP_ENABLE;
   
 begin
-
-  -- ILA debug core
-  i_ila : ila_0
-    port map (
-      CLK => event_clk,
-      probe0 => TRIG0( 63 downto   0),
-      probe1 => TRIG0(127 downto  64),
-      probe2 => TRIG0(191 downto 128),
-      probe3 => TRIG0(255 downto 192)
-      );
 
   i_bufg : bufg
     port map (
       I => PL_CLK,
       O => sys_clk);
 
-  i_mgt : entity work.transceiver_dc_gt
+  i_evr_dc : evr_dc
     generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_EVR_ENABLE,
       RX_POLARITY => '0',
       TX_POLARITY => '0',
-      refclksel   => '1')
-    port map (
-      sys_clk  => sys_clk,
-
-      ib       => mgtIb,
-      ob       => mgtOb,
-
-      REFCLK0P => gnd,
-      REFCLK0N => gnd,
-      REFCLK1P => MGTREFCLK1_P,
-      REFCLK1N => MGTREFCLK1_N,
-
-
-      rxn     => MGTRX2_N,
-      rxp     => MGTRX2_p,
-
-      txn     => MGTTX2_N,
-      txp     => MGTTX2_P);
-
-  i_evr_dc : evr_dc
+      refclksel => '1')
     port map (
       sys_clk => sys_clk,
       refclk_out => refclk,
+      refclk_rst => refclk_rst,
       event_clk_out => event_clk,
+      event_clk_rst => event_clk_rst,
       
       -- Receiver side connections
       event_rxd => event_rxd,
@@ -261,10 +257,22 @@ begin
       delay_comp_target => delay_comp_target,
       delay_comp_locked_out => delay_comp_locked,
       
-      mgtIb => mgtOb,
-      mgtOb => mgtIb);
+      MGTREFCLK0_P => gnd,
+      MGTREFCLK0_N => gnd,
+      MGTREFCLK1_P => MGTREFCLK1_P,
+      MGTREFCLK1_N => MGTREFCLK1_N,
+      
+      
+      MGTRX2_N => MGTRX2_N,
+      MGTRX2_P => MGTRX2_p,
+
+      MGTTX2_N => MGTTX2_N,
+      MGTTX2_P => MGTTX2_P);
 
   i_databuf_dc : databuf_rx_dc
+    generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_BUF_ENABLE
+    )
     port map (
       data_out => databuf_dc_data_out,
       size_data_out => databuf_dc_size_out,
@@ -289,7 +297,7 @@ begin
       ov_flag => databuf_ov_flag,
       clear_flag => databuf_clear_flag,
 
-      reset => sys_reset);
+      reset => event_clk_rst);
 
   gnd <= '0';
   vcc <= '1';
@@ -327,40 +335,21 @@ begin
       tx_reset <= PL_PB2;
       sys_reset <= PL_PB3;
       PL_LED1 <= rx_violation;
-      PL_LED2 <= rx_link_ok;
 --      PL_LED3 <= event_rxd(0);
       PL_LED4 <= count(25);
       count := count - 1;
     end if;
   end process;
 
-  process (event_clk)
-  begin
-    if rising_edge(event_clk) then
-      TRIG0(7 downto 0) <= event_rxd;
-      TRIG0(15 downto 8) <= dbus_rxd;
-      TRIG0(23 downto 16) <= databuf_rxd;
-      TRIG0(24) <= databuf_rx_k;
-      TRIG0(25) <= databuf_rx_ena;
-      TRIG0(26) <= databuf_rx_mode;
-      TRIG0(27) <= rx_link_ok;
-      TRIG0(28) <= rx_violation;
-      TRIG0(29) <= rx_clear_viol;
-      TRIG0(30) <= delay_comp_locked;
-      TRIG0(31) <= delay_comp_update;
-      TRIG0(63 downto 32) <= delay_comp_value;
-      TRIG0(95 downto 64) <= delay_comp_target;
-      TRIG0(127 downto 96) <= dc_status;
-      TRIG0(159 downto 128) <= delay_comp_rx_status;
-      TRIG0(191 downto 160) <= topology_addr;
-      TRIG0(255 downto 192) <= (others => '0');
-    end if;
-  end process;
+  PL_LED2 <= rx_link_ok;
 
   process (event_clk, event_rxd)
     variable pulse_cnt : std_logic_vector(19 downto 0) := X"00000";
+    variable sync_link_ok : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of sync_link_ok : variable is "TRUE";
   begin
     if rising_edge(event_clk) then
+      sync_link_ok := rx_link_ok & sync_link_ok(sync_link_ok'left downto 1);
       PL_LED3 <= pulse_cnt(pulse_cnt'high);
       BANK13_LVDS_8_P <= pulse_cnt(pulse_cnt'high);
       BANK13_LVDS_8_N <= not pulse_cnt(pulse_cnt'high);
@@ -370,7 +359,7 @@ begin
       if event_rxd = X"01" then
 	pulse_cnt := X"FFFFF";
       end if;
-      if rx_link_ok = '0' then
+      if sync_link_ok(0) = '0' then
 	pulse_cnt := X"0000F";
       end if;
     end if;

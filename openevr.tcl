@@ -33,10 +33,11 @@
 #    "vhdl/delay_measure_wnd.vhd"
 #    "vhdl/evr_dc.vhd"
 #    "vhdl/transceiver_dc.vhd"
-#    "vhdl/transceiver_gtx.vhd"
-#    "vhdl/transceiver_pkg.vhd"
+#    "vhdl/transceiver_gtx_k7.vhd"
 #    "vhdl/zynq_top.vhd"
 #    "vhdl/zynq.xdc"
+#    "vhdl/gtxclk.xdc"
+#    "vhdl/false_paths.xdc"
 #
 #*****************************************************************************************
 
@@ -118,7 +119,7 @@ set proj_dir [get_property directory [current_project]]
 
 # Set project properties
 set obj [current_project]
-set_property -name "board_part" -value "em.avnet.com:picozed_7030_fmc2:part0:1.1" -objects $obj
+set_property -name "board_part" -value [get_board_parts {em.avnet.com:picozed_7030_fmc2:part0:1.*}] -objects $obj
 set_property -name "default_lib" -value "xil_defaultlib" -objects $obj
 set_property -name "dsa.num_compute_units" -value "60" -objects $obj
 set_property -name "ip_cache_permissions" -value "read write" -objects $obj
@@ -132,17 +133,6 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
   create_fileset -srcset sources_1
 }
 
-# Create IPs
-create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_0
-set_property -dict [list \
-  CONFIG.C_PROBE3_WIDTH {64} \
-  CONFIG.C_PROBE2_WIDTH {64} \
-  CONFIG.C_PROBE1_WIDTH {64} \
-  CONFIG.C_PROBE0_WIDTH {64} \
-  CONFIG.C_NUM_OF_PROBES {4} \
-  CONFIG.C_INPUT_PIPE_STAGES {1} \
-] [get_ips ila_0]
-
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
 set files [list \
@@ -154,8 +144,7 @@ set files [list \
  "[file normalize "$origin_dir/vhdl/delay_measure_wnd.vhd"]"\
  "[file normalize "$origin_dir/vhdl/evr_dc.vhd"]"\
  "[file normalize "$origin_dir/vhdl/transceiver_dc.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_pkg.vhd"]"\
- "[file normalize "$origin_dir/vhdl/transceiver_gtx.vhd"]"\
+ "[file normalize "$origin_dir/vhdl/transceiver_gtx_k7.vhd"]"\
  "[file normalize "$origin_dir/vhdl/zynq_top.vhd"]"\
 ]
 add_files -norecurse -fileset $obj $files
@@ -201,12 +190,7 @@ set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
 
-set file "$origin_dir/vhdl/transceiver_gtx.vhd"
-set file [file normalize $file]
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "VHDL" -objects $file_obj
-
-set file "$origin_dir/vhdl/transceiver_pkg.vhd"
+set file "$origin_dir/vhdl/transceiver_gtx_k7.vhd"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
 set_property -name "file_type" -value "VHDL" -objects $file_obj
@@ -223,9 +207,6 @@ set_property -name "file_type" -value "VHDL" -objects $file_obj
 # Set 'sources_1' fileset properties
 set obj [get_filesets sources_1]
 set_property -name "top" -value "zynq_top" -objects $obj
-
-# Set 'sources_1' fileset file properties for remote files
-# None
 
 # Set 'sources_1' fileset file properties for local files
 # None
@@ -245,6 +226,21 @@ set file "$origin_dir/vhdl/zynq.xdc"
 set file [file normalize $file]
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
 set_property -name "file_type" -value "XDC" -objects $file_obj
+
+set file "[file normalize "$origin_dir/vhdl/gtxclk.xdc"]"
+set file_added [add_files -norecurse -fileset $obj $file]
+set file "$origin_dir/vhdl/gtxclk.xdc"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
+set_property -name "file_type" -value "XDC" -objects $file_obj
+
+set file "[file normalize "$origin_dir/vhdl/false_paths.xdc"]"
+set file_added [add_files -norecurse -fileset $obj $file]
+set file "$origin_dir/vhdl/false_paths.xdc"
+set file [file normalize $file]
+set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
+set_property -name "file_type" -value "XDC" -objects $file_obj
+
 
 # Set 'constrs_1' fileset properties
 set obj [get_filesets constrs_1]

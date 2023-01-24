@@ -5,40 +5,54 @@ use ieee.std_logic_unsigned.all;
 library UNISIM;
 use UNISIM.Vcomponents.ALL;
 
-use work.transceiver_pkg.all;
-
 entity evr_dc is
+  generic (
+    MARK_DEBUG_ENABLE            : string    := "FALSE";
+    -- MGT RX&TX signal pair polarity
+    RX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
+    TX_POLARITY                  : std_logic := '0'; -- '1' for inverted polarity
+    -- MGT reference clock selection
+    REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
+    );
   port (
     -- System bus clock
     sys_clk         : in std_logic;
-    refclk_out      : out std_logic; -- Reference clock output
-    event_clk_out   : out std_logic; -- Event clock output, delay compensated
+    reset           : in  std_logic; -- Transceiver reset
+
+    -- flags (sys_clk domain)
+    rx_violation    : out   std_logic; -- Receiver violation detected
+    rx_clear_viol   : in    std_logic; -- Clear receiver violatio flag
+
+    -- Event clock output, delay compensated
+    event_clk_out   : out std_logic;
+    event_clk_rst   : out std_logic;
 				     -- and locked to EVG
 
-    -- Receiver side connections
+    -- Receiver side connections (event_clk domain)
     event_rxd       : out std_logic_vector(7 downto 0);  -- Received event code
     dbus_rxd        : out std_logic_vector(7 downto 0);  -- Distributed bus data
     databuf_rxd     : out std_logic_vector(7 downto 0);  -- Databuffer data
     databuf_rx_k    : out std_logic; -- Databuffer K-character
     databuf_rx_ena  : out std_logic; -- Databuf data enable
     databuf_rx_mode : in std_logic;  -- Databuf receive mode, '1' enabled, '0'
-				     -- disabled (only for non-DC)
-    dc_mode         : in std_logic;  -- Delay compensation mode enable
-      
-    rx_link_ok      : out   std_logic; -- Received link ok
-    rx_violation    : out   std_logic; -- Receiver violation detected
-    rx_clear_viol   : in    std_logic; -- Clear receiver violatio flag
-      
+                                     -- disabled (only for non-DC)
+
     -- Transmitter side connections
+    refclk_out      : out std_logic; -- Reference clock output
+    refclk_rst      : out std_logic;
+
+    dc_mode         : in std_logic;  -- Delay compensation mode enable (refclk domain)
+      
+    -- flags (refclk domain)
+    rx_link_ok      : out   std_logic; -- Received link ok
+
     event_txd       : in  std_logic_vector(7 downto 0); -- TX event code
     dbus_txd        : in  std_logic_vector(7 downto 0); -- TX distributed bus data
     databuf_txd     : in  std_logic_vector(7 downto 0); -- TX databuffer data
     databuf_tx_k    : in  std_logic; -- TX databuffer K-character
     databuf_tx_ena  : out std_logic; -- TX databuffer data enable
     databuf_tx_mode : in  std_logic; -- TX databuffer transmit mode, '1'
-				     -- enabled, '0' disabled
-
-    reset           : in  std_logic; -- Transceiver reset
+                                     -- enabled, '0' disabled
 
     -- Delay compensation signals
     delay_comp_update : in std_logic;
@@ -46,65 +60,81 @@ entity evr_dc is
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
     
-    -- MGT
-    mgtIb           : in  transceiver_ob_type;
-    mgtOb           : out transceiver_ib_type
+    -- MGT physical pins
+    
+    MGTREFCLK0_P : in std_logic;
+    MGTREFCLK0_N : in std_logic;
+    MGTREFCLK1_P : in std_logic;   -- JX3 pin 2,   Zynq U5
+    MGTREFCLK1_N : in std_logic;   -- JX3 pin 3,   Zynq V5
+
+    MGTTX2_P     : out std_logic;  -- JX3 pin 25,  Zynq AA5
+    MGTTX2_N     : out std_logic;  -- JX3 pin 27,  Zynq AB5
+    MGTRX2_P     : in std_logic;   -- JX3 pin 20,  Zynq AA9
+    MGTRX2_N     : in std_logic    -- JX3 pin 22,  Zynq AB9
     );
 end evr_dc;
 
 architecture structure of evr_dc is
 
-  component transceiver_dc is
-    port (
-      sys_clk         : in std_logic;   -- system bus clock
-      refclk_out      : out std_logic;
+  attribute ASYNC_REG : string;
 
+  component transceiver_dc is
+    generic
+      (
+        MARK_DEBUG_ENABLE            : string    := "FALSE";
+        RX_POLARITY                  : std_logic := '0';
+        TX_POLARITY                  : std_logic := '0';
+        REFCLKSEL                    : std_logic := '0' -- 0 - REFCLK0, 1 - REFCLK1
+        );
+    port (
+      sys_clk         : in std_logic;
+      REFCLK0P        : in std_logic;
+      REFCLK0N        : in std_logic;
+      REFCLK1P        : in std_logic;
+      REFCLK1N        : in std_logic;
+      REFCLK_OUT      : out std_logic;
+      REFCLK_RST      : out std_logic;
       recclk_out      : out std_logic;
-      event_clk       : in std_logic;   -- event clock input (phase shifted by DCM)
+      recclk_rst      : out std_logic;
+      event_clk       : in std_logic;
+      event_clk_rst   : in std_logic;
       
       -- Receiver side connections
-      event_rxd       : out std_logic_vector(7 downto 0); -- RX event code output
-      dbus_rxd        : out std_logic_vector(7 downto 0); -- RX distributed bus bits
-      databuf_rxd     : out std_logic_vector(7 downto 0); -- RX data buffer data
-      databuf_rx_k    : out std_logic; -- RX data buffer K-character
-      databuf_rx_ena  : out std_logic; -- RX data buffer data enable
-      databuf_rx_mode : in std_logic;  -- RX data buffer mode, must be '1'
-                       -- enabled for delay compensation mode
-      dc_mode         : in std_logic;  -- delay compensation mode enable when '1'
+      event_rxd       : out std_logic_vector(7 downto 0);
+      dbus_rxd        : out std_logic_vector(7 downto 0);
+      databuf_rxd     : out std_logic_vector(7 downto 0);
+      databuf_rx_k    : out std_logic;
+      databuf_rx_ena  : out std_logic;
+      databuf_rx_mode : in std_logic;
+      dc_mode         : in std_logic;
       
-      rx_link_ok      : out   std_logic; -- RX link OK
-      rx_violation    : out   std_logic; -- RX violation detected
-      rx_clear_viol   : in    std_logic; -- Clear RX violation
-      rx_beacon       : out   std_logic; -- Received DC beacon
-      tx_beacon       : out   std_logic; -- Transmitted DC beacon
-      rx_int_beacon   : out   std_logic; -- Received DC beacon after DC FIFO
-
-      delay_inc       : in    std_logic; -- Insert extra event in FIFO
-      delay_dec       : in    std_logic; -- Drop event from FIFO
-                                         -- These two control signals are used
-                         -- only during the initial phase of
-                         -- delay compensation adjustment
+      rx_link_ok      : out   std_logic;
+      rx_violation    : out   std_logic;
+      rx_clear_viol   : in    std_logic;
+      rx_beacon       : out   std_logic;
+      tx_beacon       : out   std_logic;
+      rx_int_beacon   : out   std_logic;
       
-      reset           : in    std_logic; -- Transceiver reset
-
+      delay_inc       : in    std_logic;
+      delay_dec       : in    std_logic;
+      
+      reset           : in    std_logic;
+      
       -- Transmitter side connections
-      event_txd       : in  std_logic_vector(7 downto 0); -- TX event code
-      tx_event_ena    : out std_logic; -- 1 when event is sent out
-                                       -- With backward events the beacon event
-                                       -- has highest priority
-      dbus_txd        : in  std_logic_vector(7 downto 0); -- TX distributed bus data
-      databuf_txd     : in  std_logic_vector(7 downto 0); -- TX data buffer data
-      databuf_tx_k    : in  std_logic; -- TX data buffer K-character
-      databuf_tx_ena  : out std_logic; -- TX data buffer data enable
-      databuf_tx_mode : in  std_logic; -- TX data buffer mode enabled when '1'
-
-      -- MGT
-      mgtIb           : in  transceiver_ob_type;
-      mgtOb           : out transceiver_ib_type
-
+      event_txd       : in  std_logic_vector(7 downto 0);
+      dbus_txd        : in  std_logic_vector(7 downto 0);
+      databuf_txd     : in  std_logic_vector(7 downto 0);
+      databuf_tx_k    : in  std_logic;
+      databuf_tx_ena  : out std_logic;
+      databuf_tx_mode : in  std_logic;
+      
+      RXN             : in    std_logic;
+      RXP             : in    std_logic;
+      
+      TXN             : out   std_logic;
+      TXP             : out   std_logic
       );
-  end component transceiver_dc;
-
+  end component;
 
   component delay_measure is
     generic (
@@ -129,6 +159,9 @@ architecture structure of evr_dc is
   end component;
 
   component delay_adjust is
+    generic (
+      MARK_DEBUG_ENABLE            : string    := "FALSE"
+    );
     port (
       clk        : in std_logic;
       
@@ -166,6 +199,8 @@ architecture structure of evr_dc is
   signal vcc     : std_logic;
   
   signal refclk  : std_logic;
+  signal refclk_rst_i    : std_logic;
+  signal evtclk_rst_i    : std_logic;
   signal test_mode       : std_logic;
 
   signal CLKCLN_OUT         : std_logic;
@@ -235,11 +270,23 @@ architecture structure of evr_dc is
 begin
 
   i_upstream : transceiver_dc
+    generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_ENABLE,
+      RX_POLARITY => '0',
+      TX_POLARITY => '0',
+      refclksel => '1')
     port map (
-      sys_clk    => sys_clk,
-      refclk_out => refclk,
+      sys_clk => sys_clk,
+      REFCLK0P => gnd,
+      REFCLK0N => gnd,
+      REFCLK1P => MGTREFCLK1_P,
+      REFCLK1N => MGTREFCLK1_N,
+      REFCLK_OUT => refclk,
+      REFCLK_RST => refclk_rst_i,
       recclk_out => up_event_clk,
-      event_clk  => event_clk,
+      recclk_rst => open,
+      event_clk => event_clk,
+      event_clk_rst => evtclk_rst_i,
       
       -- Receiver side connections
       event_rxd => up_event_rxd,
@@ -269,9 +316,12 @@ begin
       databuf_tx_k => databuf_tx_k,
       databuf_tx_ena => databuf_tx_ena,
       databuf_tx_mode => databuf_tx_mode,
-      mgtIb           => mgtIb,
-      mgtOb           => mgtOb
-      );
+
+      RXN => MGTRX2_N,
+      RXP => MGTRX2_p,
+
+      TXN => MGTTX2_N,
+      TXP => MGTTX2_P);
 
   int_dly : delay_measure
     port map (
@@ -287,6 +337,9 @@ begin
       init_done => int_delay_init);  
 
   int_dly_adj : delay_adjust
+    generic map (
+      MARK_DEBUG_ENABLE => MARK_DEBUG_ENABLE
+    )
     port map (
       clk        => sys_clk,
       psclk      => refclk, -- mmcm_psclk,
@@ -402,8 +455,30 @@ begin
       I => mmcm_clk0,
       O => event_clk);
 
+  p_evr_dc_sync_evtclk : process ( event_clk )
+  variable sync_reset : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of sync_reset : variable is "TRUE";
+  begin
+    if ( rising_edge( event_clk ) ) then
+       sync_reset := reset & sync_reset(sync_reset'left downto 1);
+    end if;
+    evtclk_rst_i <= sync_reset(0);
+  end process;
+
+  p_evr_dc_sync_refclk : process ( refclk )
+  variable sync_dly_comp_locked : std_logic_vector(1 downto 0) := (others => '0');
+  attribute ASYNC_REG of sync_dly_comp_locked : variable is "TRUE";
+  begin
+    if ( rising_edge( refclk ) ) then
+       sync_dly_comp_locked := reset & sync_dly_comp_locked(sync_dly_comp_locked'left downto 1);
+    end if;
+    dc_fast_adjust <= not sync_dly_comp_locked(0);
+  end process;
+
   refclk_out <= refclk;
+  refclk_rst <= refclk_rst_i;
   event_clk_out <= event_clk;
+  event_clk_rst <= evtclk_rst_i;
   event_rxd <= up_event_rxd;
   dbus_rxd <= up_dbus_rxd;
   databuf_rxd <= up_databuf_rxd;
@@ -424,7 +499,6 @@ begin
   up_databuf_rx_mode <= databuf_rx_mode;
   up_databuf_tx_mode <= databuf_tx_mode;
 
-  dc_fast_adjust <= not delay_comp_locked;
   dc_slow_adjust <= '0'; -- test_out(0);
   delay_comp_locked_out <= delay_comp_locked;
   

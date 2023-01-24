@@ -22,18 +22,21 @@ use work.evr_pkg.all;
 --use UNISIM.VCOMPONENTS.ALL;
 
 entity databuf_rx_dc is
+  generic (
+    MARK_DEBUG_ENABLE : string := "FALSE"
+  );
   port (
-    -- Memory buffer RAMB read interface
+    -- Memory buffer RAMB read interface (clk domain)
+    clk               : in std_logic;
     data_out          : out std_logic_vector(31 downto 0);
     size_data_out     : out std_logic_vector(31 downto 0);
     addr_in           : in std_logic_vector(10 downto 2);
-    clk               : in std_logic;
     
-    -- Data stream interface
+    -- Data stream interface (event_clk domain)
+    event_clk         : in std_logic;
     databuf_data      : in std_logic_vector(7 downto 0);
     databuf_k         : in std_logic;
     databuf_ena       : in std_logic;
-    event_clk         : in std_logic;
 
     -- Databuf outbound stream interface;
     -- someone may be interested in picking out snippets of
@@ -47,29 +50,30 @@ entity databuf_rx_dc is
     delay_comp_status : out std_logic_vector(31 downto 0);
     topology_addr     : out std_logic_vector(31 downto 0);
 
-    -- Control interface
+    -- Control interface (clk domain)
     irq_out           : out std_logic;
-
     sirq_ena          : in std_logic_vector(0 to 127);
+
+    -- Control interface (event_clk domain)
     rx_flag           : out std_logic_vector(0 to 127);
     cs_flag           : out std_logic_vector(0 to 127);
     ov_flag           : out std_logic_vector(0 to 127);
     clear_flag        : in std_logic_vector(0 to 127);
-
     reset             : in std_logic
-    
     );
 end databuf_rx_dc;
 
 architecture implementation of databuf_rx_dc is
-  signal TRIG0            : std_logic_vector(255 downto 0);
+
+  attribute MARK_DEBUG    : string;
 
   signal rx_addr          : std_logic_vector(10 downto 0);
   signal rx_data          : std_logic_vector(7 downto 0);
   signal seg_addr         : std_logic_vector(9 downto 0);
   signal rx_size          : std_logic_vector(15 downto 0);
   signal wr_size          : std_logic;
-  signal size_data_int    : std_logic_vector(31 downto 0);
+  signal size_data_int_i  : std_logic_vector(31 downto 0);
+  signal size_data_int    : std_logic_vector(15 downto 0);
   
   signal we_A             : std_logic;
   signal delay_comp_cyc   : std_logic_vector(4 downto 0);
@@ -83,8 +87,20 @@ architecture implementation of databuf_rx_dc is
   signal gnd              : std_logic;
   signal gnd32            : std_logic_vector(31 downto 0);
   signal vcc              : std_logic;
-  signal data_out_i       : std_logic_vector(31 downto 0);
 
+  attribute MARK_DEBUG of databuf_data: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_k: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of databuf_ena: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_addr: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_data: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of we_A: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of seg_addr: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of rx_size: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of wr_size: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of delay_comp_cyc: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of addr_in: signal is MARK_DEBUG_ENABLE;
+  attribute MARK_DEBUG of size_data_int: signal is MARK_DEBUG_ENABLE;
+ 
   component buf_bsram IS
     port (
       addra: IN std_logic_VECTOR(10 downto 0);
@@ -332,29 +348,7 @@ port (
   );
   end component;
 
-  COMPONENT ila_0
-    PORT (
-      clk : IN STD_LOGIC;
-      probe0 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe1 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe2 : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-      probe3 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
-      );
-  END COMPONENT;
-
-
 begin
-
-  GEN_ILA : if ( false ) generate
-  i_ila : ila_0
-    port map (
-      CLK => event_clk,
-      probe0 => TRIG0( 63 downto   0),
-      probe1 => TRIG0(127 downto  64),
-      probe2 => TRIG0(191 downto 128),
-      probe3 => TRIG0(255 downto 192)
-      );
-  end generate GEN_ILA;
 
   gnd <= '0';
   gnd32 <= (others => '0');
@@ -369,7 +363,7 @@ begin
       dina => rx_data,
       douta => open,
       dinb => gnd32,
-      doutb => data_out_i,
+      doutb => data_out,
       wea => we_A,
       web => gnd);
 
@@ -384,7 +378,7 @@ begin
       WRITE_WIDTH_A => 18,
       WRITE_WIDTH_B => 18)
     port map (
-      DOADO => size_data_int,
+      DOADO => size_data_int_i,
       DOBDO => open,
       DOPADOP => open,
       DOPBDOP => open,
@@ -429,12 +423,13 @@ begin
       WEBWE(6) => gnd,
       WEBWE(7) => gnd);
 
+  size_data_int <= size_data_int_i(size_data_int'range);
+
   size_data_out(31 downto 16) <= (others => '0');
-  size_data_out(15 downto 0)  <= size_data_int(15 downto 0);
-  data_out                    <= data_out_i;
+  size_data_out(15 downto 0) <= size_data_int(15 downto 0);
 
   reception : process (event_clk, databuf_data, databuf_k, databuf_ena,
-		       reset, delay_comp_cyc, rx_flag_i, cs_flag_i, ov_flag_i)
+		       reset, delay_comp_cyc)
     variable data_ena       : std_logic;
     variable address_cycle  : std_logic;
     variable running        : std_logic;
@@ -449,6 +444,18 @@ begin
     variable topology_in    : std_logic_vector(31 downto 0);
     variable segment        : integer range 0 to 127;
     variable clear_flag_i   : std_logic_vector(0 to 127);
+
+    attribute MARK_DEBUG of data_ena : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of address_cycle : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of running : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of address : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of bytecnt : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of addr_decode : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of dc_value_in : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of topology_in : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of rx_checksum : variable is MARK_DEBUG_ENABLE;
+    attribute MARK_DEBUG of checksum : variable is MARK_DEBUG_ENABLE;
+
   begin
     rx_flag <= rx_flag_i;
     cs_flag <= cs_flag_i;
@@ -561,20 +568,6 @@ begin
         topology_addr <= (others => '0');
       end if;
 
-
-      TRIG0(57) <= data_ena;
-      TRIG0(58) <= address_cycle;
-      TRIG0(61 downto 59) <= addr_decode;
-      TRIG0(63 downto 62) <= (others => '0');
---      TRIG0(67) <= running;
-      TRIG0(76 downto 64) <= address;
-      TRIG0(88 downto 77) <= bytecnt;
-      TRIG0(131 downto 126) <= (others => '0');
-      TRIG0(188 downto 157) <= dc_value_in;
-      TRIG0(191 downto 189) <= (others => '0');
-      TRIG0(223 downto 192) <= topology_in;
-      TRIG0(239 downto 224) <= rx_checksum;
-      TRIG0(255 downto 240) <= checksum;
     end if;
   end process;
 
@@ -592,19 +585,4 @@ begin
     end if;
   end process;
 
-  TRIG0(7 downto 0) <= databuf_data;
-  TRIG0(8) <= databuf_k;
-  TRIG0(9) <= databuf_ena;
-  TRIG0(20 downto 10) <= rx_addr;
-  TRIG0(28 downto 21) <= rx_data;
-  TRIG0(29) <= we_A;
-  TRIG0(39 downto 30) <= seg_addr;
-  TRIG0(55 downto 40) <= rx_size;
-  TRIG0(56) <= wr_size;
-  TRIG0(93 downto 89) <= delay_comp_cyc;
-  TRIG0(125 downto  94) <= data_out_i;
-  TRIG0(140 downto 132) <= addr_in;
-  TRIG0(156 downto 141) <= size_data_int(15 downto 0);
-  
 end implementation;
-      
