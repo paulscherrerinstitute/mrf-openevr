@@ -37,4 +37,6 @@ set_false_path -through [get_pins -of_objects [get_cells -hier -regex {.*int_dly
 
 set_false_path -through [get_pins -of_objects [get_cells -hier -regex {.*int_dly_adj/dcm_phase_change_reg[[][0-9]+[]]}] -filter REF_PIN_NAME==Q] -to [get_pins -of_objects [get_cells -hier -regex {.*int_dly_adj/dcm_control[.]dcm_step_phase_reg[[][0-9]+[]]}] -filter REF_PIN_NAME==D]
 
-
+# According to some forum talk this can be set as a false path because
+# the FIFO internals handle it correctly
+set_false_path -through [get_pins -hier -regex {.*/i_upstream/i_dc_fifo/RST}]

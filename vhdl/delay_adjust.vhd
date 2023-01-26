@@ -295,7 +295,7 @@ begin
                 end if;
               end if;
             end if;
-          when "011" =>
+          when "11" =>
             dcm_reload_err <= '0';
             adjust_locked_i <= '1';
             if delay_value_updt = '1' then
