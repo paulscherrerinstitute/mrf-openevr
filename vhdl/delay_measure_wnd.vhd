@@ -126,32 +126,33 @@ begin
   process (clk, beacon_0, beacon_1, reset)
     attribute ASYNC_REG    : string;
     variable counting      : std_logic := '0';
-    variable prev_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
-    variable cnt           : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
-    variable diff_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0);
+    variable prev_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0) := (others => '0');
+    variable cnt           : std_logic_vector(MAX_DELAY_BITS-1 downto 0) := (others => '0');
+    variable diff_cnt      : std_logic_vector(MAX_DELAY_BITS-1 downto 0) := (others => '1');
     variable sync_beacon_0 : std_logic_vector(3 downto 0) := "0000";
     variable sync_beacon_1 : std_logic_vector(3 downto 0) := "0000";
     attribute ASYNC_REG of sync_beacon_0 : variable is "TRUE";
     attribute ASYNC_REG of sync_beacon_1 : variable is "TRUE";
     variable cnt_valid     : std_logic;
+    variable b0_detected   : boolean;
+    variable b1_detected   : boolean;
   begin
     if rising_edge(clk) then
-      reset_count <= '0';
+      reset_count   <= '0';
       reset_count_2 <= '0';
-      delay_update <= '0';
-      if counting = '1' then
-        cnt := cnt + 1;
-      end if;
-      if sync_beacon_0(1 downto 0) = "10" then
-        cnt := (others => '0');
-        counting := '1';
-        cnt_valid := '1';
-      end if;
-      if sync_beacon_1(1 downto 0) = "10" then
+      delay_update  <= '0';
+      b0_detected   := ( sync_beacon_0(1 downto 0) = "10" );
+      b1_detected   := ( sync_beacon_1(1 downto 0) = "10" );
+      if b0_detected and not b1_detected then
+        cnt         := (others => '0');
+        diff_cnt    := prev_cnt - 1;
+        counting    := '1';
+        cnt_valid   := '1';
+      elsif not b0_detected and b1_detected then
         if counting = '1' then
+          cnt       := cnt + 1;
           delay_cnt <= cnt;
-          counting := '0';
-          diff_cnt := prev_cnt - cnt;
+          counting  := '0';
           if diff_cnt(MAX_DELAY_BITS-1 downto 2) /= gnd_vec(MAX_DELAY_BITS-1 downto 2) and
             diff_cnt(MAX_DELAY_BITS-1 downto 2) /= vcc_vec(MAX_DELAY_BITS-1 downto 2) then
             cnt_valid := '0';
@@ -161,6 +162,27 @@ begin
             delay_update <= '1';
           end if;
           prev_cnt := cnt;
+          diff_cnt := (others => '1');
+        end if;
+      elsif ( b0_detected and b1_detected ) then
+        cnt       := (others => '0');
+        cnt_valid := '1';
+        delay_cnt <= (others => '0');
+        counting  := '0';
+        if prev_cnt(MAX_DELAY_BITS-1 downto 2) /= gnd_vec(MAX_DELAY_BITS-1 downto 2) and
+          prev_cnt(MAX_DELAY_BITS-1 downto 2) /= vcc_vec(MAX_DELAY_BITS-1 downto 2) then
+          cnt_valid     := '0';
+          reset_count   <= '1';
+          reset_count_2 <= '1';
+        else
+          delay_update  <= '1';
+        end if;
+        diff_cnt := (others => '1');
+        prev_cnt := (others => '0');
+      else -- neither detected;
+        if counting = '1' then
+          diff_cnt := diff_cnt - 1;
+          cnt      := cnt + 1;
         end if;
       end if;
       
