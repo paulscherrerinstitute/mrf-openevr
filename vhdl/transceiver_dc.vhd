@@ -175,7 +175,6 @@ architecture structure of transceiver_dc is
   signal CPLLLOCK_out : std_logic;
   signal GTRXRESET_in : std_logic;
   signal GTTXRESET_in : std_logic;
-  signal RXCDRLOCK_out : std_logic;
   signal RXUSERRDY_in : std_logic;
   signal TXUSERRDY_in : std_logic;
 
@@ -196,7 +195,6 @@ architecture structure of transceiver_dc is
   attribute MARK_DEBUG of align_error : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of databuf_rxd_i : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of databuf_rx_k_i : signal is MARK_DEBUG_ENABLE;
-  attribute MARK_DEBUG of RXCDRLOCK_out : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_do : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_dop : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of fifo_rden : signal is MARK_DEBUG_ENABLE;
@@ -276,7 +274,7 @@ begin
   rx_data                          <= transceiverOb.rx_data;
   rx_charisk                       <= transceiverOb.rx_charisk;
   rx_disperr                       <= transceiverOb.rx_disperr;
-  rx_notintable                    <= transceiverOb.rx_notintable;
+  xx_notintable                    <= transceiverOb.rx_notintable;
 
   txusrclk                         <= transceiverOb.tx_usr_clk;
   txbufstatus_i                    <= transceiverOb.tx_bufstatus;
