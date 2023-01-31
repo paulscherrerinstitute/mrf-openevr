@@ -274,7 +274,7 @@ begin
   rx_data                          <= transceiverOb.rx_data;
   rx_charisk                       <= transceiverOb.rx_charisk;
   rx_disperr                       <= transceiverOb.rx_disperr;
-  xx_notintable                    <= transceiverOb.rx_notintable;
+  rx_notintable                    <= transceiverOb.rx_notintable;
 
   txusrclk                         <= transceiverOb.tx_usr_clk;
   txbufstatus_i                    <= transceiverOb.tx_bufstatus;
