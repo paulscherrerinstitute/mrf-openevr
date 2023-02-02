@@ -27,10 +27,12 @@ package transceiver_pkg is
     rx_charisk           : std_logic_vector( 1 downto 0);
     rx_disperr           : std_logic_vector( 1 downto 0);
     rx_notintable        : std_logic_vector( 1 downto 0);
+    rx_resetdone         : std_logic;
 
     -- TX clock domain
     tx_usr_clk           : std_logic;
     tx_bufstatus         : std_logic_vector( 1 downto 0);
+    tx_resetdone         : std_logic;
 
     -- DRP clock domain
     drp_clk              : std_logic;
@@ -51,6 +53,9 @@ package transceiver_pkg is
     rx_charisk           => (others => '0'),
     rx_disperr           => (others => '0'),
     rx_notintable        => (others => '0'),
+    rx_resetdone         => '0',
+    tx_usr_clk           => '0',
+    tx_resetdone         => '0',
     tx_usr_clk           => '0',
     tx_bufstatus         => (others => '0'),
     drp_clk              => '0',

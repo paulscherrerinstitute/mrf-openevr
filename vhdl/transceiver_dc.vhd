@@ -112,6 +112,8 @@ architecture structure of transceiver_dc is
   signal txusrclk      : std_logic;
   signal rxcdrreset    : std_logic;
 
+  signal rx_gtresetting : std_logic := '0';
+
   signal link_ok         : std_logic;
   signal link_ok_rxusr   : std_logic;
   signal align_error     : std_logic;
@@ -141,6 +143,8 @@ architecture structure of transceiver_dc is
   signal fifo_wren     : std_logic;
   signal fifo_di       : std_logic_vector(63 downto 0);
   signal fifo_dip      : std_logic_vector(7 downto 0);
+
+  signal rx_resetdone  : std_logic;
 
   signal tx_fifo_do_i  : std_logic_vector(31 downto 0);
   signal tx_fifo_do    : std_logic_vector( 7 downto 0);
@@ -275,7 +279,8 @@ begin
   rx_charisk                       <= transceiverOb.rx_charisk;
   rx_disperr                       <= transceiverOb.rx_disperr;
   rx_notintable                    <= transceiverOb.rx_notintable;
-
+  rx_resetdone                     <= transceiverOb.rx_resetdone;
+  
   txusrclk                         <= transceiverOb.tx_usr_clk;
   txbufstatus_i                    <= transceiverOb.tx_bufstatus;
 
@@ -355,7 +360,7 @@ begin
 
   tx_fifo_do  <= tx_fifo_do_i(tx_fifo_do'range);
   tx_fifo_di  <= tx_fifo_di_i(tx_fifo_di'range);
-  
+
   vcc <= '1';
   gnd <= '0';
   gnd_vec <= (others => '0');
@@ -449,7 +454,7 @@ begin
     
     if rising_edge(refclk) then
       rxcdrreset <= '0';
-      if GTRXRESET_in = '0' then
+      if rx_gtresetting = '0' then
         if prescaler(prescaler'high) = '1' then
           link_ok <= '0';
           if count = "0000" then
@@ -504,7 +509,7 @@ begin
       end if;
 
       -- Synchronize asynchronous resets
-      evr_cdcsync_reset := shiftl( evr_cdcsync_reset, ( reset or not CPLLLOCK_out ) );
+      evr_cdcsync_reset := shiftl( evr_cdcsync_reset, ( ( reset or not CPLLLOCK_out ) and not rx_gtresetting ) );
     end if;
   end process;
 
@@ -699,9 +704,18 @@ begin
   
   rx_resetting: process (refclk, rxcdrreset)
     variable cnt : std_logic_vector(25 downto 0) := (others => '1');
+    variable rx_resetdone_sync : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of rx_resetdone_sync : variable is "TRUE";
   begin
     if rising_edge(refclk) then
+      rx_resetdone_sync := rx_resetdone & rx_resetdone_sync(rx_resetdone_sync'left downto 1);
       GTRXRESET_in <= cnt(cnt'high);
+      if cnt(cnt'high) = '1' then
+        rx_gtresetting <= '1';
+      end if;
+      if ( rx_resetdone_sync(0) = '1' ) then
+        rx_gtresetting <= '0';
+      end if;
       RXUSERRDY_in <= not cnt(cnt'high);
       if cnt(cnt'high) = '1' then
         cnt := cnt - 1;

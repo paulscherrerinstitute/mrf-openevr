@@ -97,6 +97,7 @@ architecture structure of transceiver_gt is
   signal RXDLYEN_in : std_logic;
   signal RXDLYSRESET_in : std_logic;
   signal RXDLYSRESETDONE_out : std_logic;
+  signal RXRESETDONE_out : std_logic;
   signal RXPHALIGN_in : std_logic;
   signal RXPHALIGNDONE_out : std_logic;
   signal RXPHALIGNEN_in : std_logic;
@@ -613,7 +614,7 @@ begin
         ------------------ Receive Ports - Rx Channel Bonding Ports ----------------
         RXCHBONDI                       =>      "00000",
         -------------- Receive Ports -RX Initialization and Reset Ports ------------
-        RXRESETDONE                     =>      open,
+        RXRESETDONE                     =>      RXRESETDONE_out,
         -------------------------------- Rx AFE Ports ------------------------------
         RXQPIEN                         =>      gnd,
         RXQPISENN                       =>      open,
@@ -803,8 +804,11 @@ begin
     transceiverOb.rx_charisk    <= rx_charisk;
     transceiverOb.rx_disperr    <= rx_disperr;
     transceiverOb.rx_notintable <= rx_notintable;
+    transceiverOb.rx_resetdone  <= RXRESETDONE_out;
     transceiverOb.tx_usr_clk    <= txusrclk_i;
     transceiverOb.tx_bufstatus  <= tx_bufstatus;
+    transceiverOb.tx_resetdone  <= TXRESETDONE_out;
+    transceiverOb.tx_usr_clk    <= txusrclk_i;
     transceiverOb.drp_clk       <= drpclk_i;
     transceiverOb.drp_do        <= drp_do;
     transceiverOb.drp_rdy       <= drp_rdy;

@@ -71,6 +71,9 @@ architecture structure of transceiver_gt is
   signal sys_clk            : std_logic;
   signal reset              : std_logic;
 
+  signal rx_resetdone       : std_logic;
+  signal tx_resetdone       : std_logic;
+
   signal evr_cdcsync_txrst      : std_logic_vector(1 downto 0) := (others => '1');
   attribute ASYNC_REG       of evr_cdcsync_txrst : signal is "TRUE";
   signal evr_cdcsync_rxrst      : std_logic_vector(1 downto 0) := (others => '1');
@@ -111,8 +114,8 @@ begin
     Q0_CLK1_GTREFCLK_PAD_N_IN               => REFCLK_N,
     Q0_CLK1_GTREFCLK_PAD_P_IN               => REFCLK_P,
 
-    GT0_TX_FSM_RESET_DONE_OUT               => open,
-    GT0_RX_FSM_RESET_DONE_OUT               => open,
+    GT0_TX_FSM_RESET_DONE_OUT               => tx_resetdone,
+    GT0_RX_FSM_RESET_DONE_OUT               => rx_resetdone,
     GT0_DATA_VALID_IN                       => '1',
 
     GT0_TXUSRCLK_OUT                        => txusrclk_i,
@@ -224,8 +227,10 @@ begin
     transceiverOb.rx_charisk    <= rx_charisk;
     transceiverOb.rx_disperr    <= rx_disperr;
     transceiverOb.rx_notintable <= rx_notintable;
+    transceiverOb.rx_resetdone  <= rx_resetdone ;
     transceiverOb.tx_usr_clk    <= txusrclk_i;
     transceiverOb.tx_bufstatus  <= tx_bufstatus;
+    transceiverOb.tx_resetdone  <= tx_resetdone ;
     transceiverOb.drp_clk       <= drpclk;
     transceiverOb.drp_do        <= drpdo;
     transceiverOb.drp_rdy       <= drprdy;
