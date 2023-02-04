@@ -56,7 +56,6 @@ package transceiver_pkg is
     rx_resetdone         => '0',
     tx_usr_clk           => '0',
     tx_resetdone         => '0',
-    tx_usr_clk           => '0',
     tx_bufstatus         => (others => '0'),
     drp_clk              => '0',
     drp_do               => (others => '0'),

@@ -144,8 +144,6 @@ architecture structure of transceiver_dc is
   signal fifo_di       : std_logic_vector(63 downto 0);
   signal fifo_dip      : std_logic_vector(7 downto 0);
 
-  signal rx_resetdone  : std_logic;
-
   signal tx_fifo_do_i  : std_logic_vector(31 downto 0);
   signal rx_resetdone  : std_logic;
 
