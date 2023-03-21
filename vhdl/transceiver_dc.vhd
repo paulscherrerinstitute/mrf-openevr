@@ -704,16 +704,16 @@ begin
   
   rx_resetting: process (refclk, rxcdrreset)
     variable cnt : std_logic_vector(25 downto 0) := (others => '1');
-    variable rx_resetdone_sync : std_logic_vector(1 downto 0) := (others => '0');
-    attribute ASYNC_REG of rx_resetdone_sync : variable is "TRUE";
+    variable evr_cdcsync_rx_resetdone: std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_rx_resetdone : variable is "TRUE";
   begin
     if rising_edge(refclk) then
-      rx_resetdone_sync := rx_resetdone & rx_resetdone_sync(rx_resetdone_sync'left downto 1);
+      evr_cdcsync_rx_resetdone := shiftl( evr_cdcsync_rx_resetdone, rx_resetdone );
       GTRXRESET_in <= cnt(cnt'high);
       if cnt(cnt'high) = '1' then
         rx_gtresetting <= '1';
       end if;
-      if ( rx_resetdone_sync(0) = '1' ) then
+      if ( lbit( evr_cdcsync_rx_resetdone ) = '1' ) then
         rx_gtresetting <= '0';
       end if;
       RXUSERRDY_in <= not cnt(cnt'high);
