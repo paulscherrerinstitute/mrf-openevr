@@ -477,7 +477,8 @@ begin
   int_delay_reset <= not up_rx_link_ok;
 
   mmcm_clkinsel <= not run_on_refclk; -- high: select CLKIN1
-  mmcm_reset <= not up_rx_link_ok;
+--  mmcm_reset <= not up_rx_link_ok;
+  mmcm_reset <= not transceiverOb.cpll_locked;
   
   process (sys_clk, mmcm_psen, mmcm_psincdec)
   begin
