@@ -57,7 +57,9 @@ entity evr_dc is
     delay_comp_locked_out : out std_logic;
 
     transceiverOb   : in  EvrTransceiverObType;
-    transceiverIb   : out EvrTransceiverIbType
+    transceiverIb   : out EvrTransceiverIbType;
+
+    mmcm_locked     : out std_logic
     
     );
 end evr_dc;
@@ -404,7 +406,7 @@ begin
       CLKFBOUTB => open,
       CLKFBSTOPPED => open,
       CLKINSTOPPED => open,
-      LOCKED => open,
+      LOCKED => mmcm_locked,
       CLKIN1 => up_event_clk,
       CLKIN2 => refclk,
       CLKINSEL => mmcm_clkinsel,
