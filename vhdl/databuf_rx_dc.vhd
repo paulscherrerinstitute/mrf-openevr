@@ -108,11 +108,8 @@ architecture implementation of databuf_rx_dc is
       clka: IN std_logic;
       clkb: IN std_logic;
       dina: IN std_logic_VECTOR(7 downto 0);
-      douta: OUT std_logic_VECTOR(7 downto 0);
-      dinb: IN std_logic_VECTOR(31 downto 0);
       doutb: OUT std_logic_VECTOR(31 downto 0);
-      wea: IN std_logic;
-      web: IN std_logic);
+      wea: IN std_logic);
   end component;
 
   component DPRAM_2k_16_16_ecp2m IS
@@ -361,11 +358,8 @@ begin
       clka => event_clk,
       clkb => clk,
       dina => rx_data,
-      douta => open,
-      dinb => gnd32,
       doutb => data_out,
-      wea => we_A,
-      web => gnd);
+      wea => we_A);
 
   databuf_strm_data <= rx_data;
   databuf_strm_addr <= rx_addr;

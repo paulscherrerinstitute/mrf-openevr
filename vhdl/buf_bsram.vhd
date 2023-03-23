@@ -26,11 +26,8 @@ entity buf_bsram IS
     clka: IN std_logic;
     clkb: IN std_logic;
     dina: IN std_logic_VECTOR(7 downto 0);
-    douta: OUT std_logic_VECTOR(7 downto 0);
-    dinb: IN std_logic_VECTOR(31 downto 0);
     doutb: OUT std_logic_VECTOR(31 downto 0);
-    wea: IN std_logic;
-    web: IN std_logic);
+    wea: IN std_logic);
 end buf_bsram;
 
 architecture structure of buf_bsram is
@@ -39,6 +36,10 @@ architecture structure of buf_bsram is
   signal gnd : std_logic;
   signal gnd8 : std_logic_vector(7 downto 0);
   signal gnd32 : std_logic_vector(31 downto 0);
+
+  signal douta: std_logic_VECTOR(7 downto 0);
+  signal dinb: std_logic_VECTOR(31 downto 0) := (others => '0');
+  signal web: std_logic := '0';
   
   component RAMB16_S9_S36 is
     generic (
