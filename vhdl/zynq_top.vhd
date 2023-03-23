@@ -64,6 +64,7 @@ architecture structure of zynq_top is
     databuf_rx_mode : in std_logic;  -- Databuf receive mode, '1' enabled, '0'
 				     -- disabled (only for non-DC)
     dc_mode         : in std_logic;  -- Delay compensation mode enable
+    delay_meas_value: out std_logic_vector(31 downto 0);
       
     rx_link_ok      : out   std_logic; -- Received link ok
     rx_violation    : out   std_logic; -- Receiver violation detected
@@ -273,6 +274,7 @@ begin
       databuf_rx_ena => databuf_rx_ena,
       databuf_rx_mode => databuf_rx_mode,
       dc_mode => dc_mode,
+      delay_meas_value => open,
       
       rx_link_ok => rx_link_ok,
       rx_violation => rx_violation,

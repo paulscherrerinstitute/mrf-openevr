@@ -37,7 +37,8 @@ entity evr_dc is
     refclk_out      : out std_logic; -- Reference clock output
     refclk_rst      : out std_logic;
 
-    dc_mode         : in std_logic;  -- Delay compensation mode enable (refclk domain)
+    dc_mode         : in std_logic;  -- Delay compensation mode enable (synced internally)
+    delay_meas_value: out std_logic_vector(31 downto 0);
       
     -- flags (refclk domain)
     rx_link_ok      : out   std_logic; -- Received link ok
@@ -473,6 +474,7 @@ begin
 
   dc_slow_adjust <= '0'; -- test_out(0);
   delay_comp_locked_out <= delay_comp_locked;
+  delay_meas_value <= int_slow_delay_value;
   
   run_on_refclk <= '0';
   test_mode <= '0';
