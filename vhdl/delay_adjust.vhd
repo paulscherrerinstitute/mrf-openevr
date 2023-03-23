@@ -79,6 +79,7 @@ end entity delay_adjust;
 architecture struct of delay_adjust is
   attribute ASYNC_REG    : string;
   attribute MARK_DEBUG   : string;
+  attribute KEEP         : string;
   
   signal phase_error     : std_logic_vector(31 downto 0);
   signal delay_valid     : std_logic;
@@ -118,6 +119,15 @@ architecture struct of delay_adjust is
   signal dcm_phase_0_i : std_logic_vector(11 downto 0);
   signal dcm_phase_i_i : std_logic_vector(11 downto 0);
   signal dcm_phase_d_i : std_logic_vector(11 downto 0);
+  signal dcm_phase_add : std_logic_vector(9 downto 0);
+    -- keep to help writing constraints
+  attribute KEEP       of dcm_phase_add : signal is "TRUE";
+
+  signal delay_comp_value_k : std_logic_vector(31 downto 0);
+  attribute KEEP       of delay_comp_value_k : signal is "TRUE";
+  signal int_delay_value_k  : std_logic_vector(31 downto 0);
+  attribute KEEP       of int_delay_value_k  : signal is "TRUE";
+
   signal dcm_cycle_i   : std_logic_vector(11 downto 0);
   signal pwm_cnt_i     : std_logic_vector(10 downto 0);
   signal pulse_cnt_i   : std_logic_vector(10 downto 0);
@@ -154,9 +164,12 @@ begin
   dc_status(2) <= delay_too_short;
   dc_status(1) <= delay_valid;
   dc_status(0) <= adjust_locked_i;
+
+  delay_comp_value_k <= delay_comp_value;
+  int_delay_value_k  <= int_delay_value;
   
-  process (clk, delay_comp_update, delay_comp_value, delay_comp_target,
-           int_delay_value, int_delay_update, int_delay_init, dc_mode)
+  process (clk, delay_comp_update, delay_comp_value_k, delay_comp_target,
+           int_delay_value_k, int_delay_update, int_delay_init, dc_mode)
     variable sync_dc_value  : std_logic_vector(31 downto 0) := X"00000000";
     variable sync_id_value  : std_logic_vector(31 downto 0) := X"00000000";
     variable sync_dc_update : std_logic_vector(2 downto 0) := (others => '0');
@@ -179,10 +192,10 @@ begin
           phase_error <= (others => '0');
         end if;
         if sync_dc_update(sync_dc_update'high) = '1' then
-          sync_dc_value := delay_comp_value;
+          sync_dc_value := delay_comp_value_k;
         end if;
         if sync_id_update(sync_id_update'high) = '1' then
-          sync_id_value := int_delay_value;
+          sync_id_value := int_delay_value_k;
         end if;
       if override_mode = '1' or lbit( evr_cdcsync_dc_mode ) = '0' then
         sync_dc_value := (others => '0');
@@ -331,8 +344,10 @@ begin
       sync_link_ok := link_ok & sync_link_ok(sync_link_ok'left downto 1);
     end if;
   end process;
+
+  dcm_phase_add <= (dcm_step_change(dcm_step_change'high) & dcm_step_change & dcm_phase_change);
   
-  dcm_control: process (psclk, dcm_step_change, dcm_phase_change, dcm_update, link_ok)
+  dcm_control: process (psclk, dcm_phase_add, dcm_update, link_ok)
     variable dcm_step_phase : std_logic_vector(3 downto 0) := "0000";
     variable dcm_phase      : std_logic_vector(5 downto 0) := "000000";
     variable new_dcm_phase  : std_logic_vector(9 downto 0);
@@ -418,8 +433,7 @@ begin
       if dcm_updt_sr(2 downto 1) = "01" then
         if dcm_step_phase = "0000" then
           new_dcm_phase := dcm_step_phase & dcm_phase;
-          new_dcm_phase := new_dcm_phase + (dcm_step_change(dcm_step_change'high)
-                                            & dcm_step_change & dcm_phase_change);
+          new_dcm_phase := new_dcm_phase + dcm_phase_add;
           dcm_step_phase := new_dcm_phase(9 downto 6);
           dcm_phase := new_dcm_phase(5 downto 0);
         end if;
