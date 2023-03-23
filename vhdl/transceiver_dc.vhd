@@ -733,23 +733,26 @@ begin
     variable beacon_cnt : std_logic_vector(3 downto 0) := "0000"; 
     variable fifo_pend  : std_logic;
     attribute ASYNC_REG of beacon_cnt : variable is "TRUE";
+    variable evr_cdcsync_dc_mode : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_dc_mode : variable is "TRUE";
     variable even0      : std_logic;
     attribute MARK_DEBUG of even0 : variable is MARK_DEBUG_ENABLE;
   begin
     tx_event_ena <= tx_event_ena_i;
     tx_event_ena_i <= '1';
     tx_fifo_rden <= '1';
-    if beacon_cnt(1 downto 0) = "10" and dc_mode = '1' then
+    if beacon_cnt(1 downto 0) = "10" and lbit( evr_cdcsync_dc_mode ) = '1' then
       tx_event_ena_i <= '0';
       if tx_fifo_empty = '0' then
         tx_fifo_rden <= '0';
       end if;
     end if;
     if rising_edge(txusrclk) then
+      evr_cdcsync_dc_mode  := shiftl( evr_cdcsync_dc_mode, dc_mode );
       tx_charisk <= "00";
       tx_data(15 downto 8) <= (others => '0');
       tx_beacon <= beacon_cnt(1);
-      if beacon_cnt(1 downto 0) = "10" and dc_mode = '1' then
+      if beacon_cnt(1 downto 0) = "10" and lbit( evr_cdcsync_dc_mode ) = '1' then
 	tx_data(15 downto 8) <= C_EVENT_BEACON; -- Beacon event
       elsif tx_fifo_rderr = '0' then
         tx_data(15 downto 8) <= tx_fifo_do(7 downto 0);

@@ -15,6 +15,8 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
+
+use work.evr_pkg.all;
 --
 -- Delay adjust steps
 -- 0 - initial state, arbitrary delay, wait for delay_value_valid for path and
@@ -125,7 +127,7 @@ architecture struct of delay_adjust is
 
   signal swallow_inc_i : std_logic;
   signal swallow_dec_i : std_logic;
-  
+
   attribute MARK_DEBUG of phase_error : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of delay_valid : signal is MARK_DEBUG_ENABLE;
   attribute MARK_DEBUG of dcm_adjust : signal is MARK_DEBUG_ENABLE;
@@ -166,8 +168,11 @@ begin
     variable sync_dc_id     : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_short    : std_logic_vector(31 downto 0) := X"00000000";
     variable delay_long     : std_logic_vector(31 downto 0) := X"00000000";
+    variable evr_cdcsync_dc_mode : std_logic_vector(1 downto 0) := (others => '0');
+    attribute ASYNC_REG of evr_cdcsync_dc_mode : variable is "TRUE";
   begin
     if rising_edge(clk) then
+      evr_cdcsync_dc_mode  := shiftl( evr_cdcsync_dc_mode, dc_mode );
       delay_valid <= sync_id_update(sync_id_update'high);
         phase_error <= delay_comp_target - sync_dc_id;
         if sync_init(sync_init'high) = '0' then
@@ -179,7 +184,7 @@ begin
         if sync_id_update(sync_id_update'high) = '1' then
           sync_id_value := int_delay_value;
         end if;
-      if override_mode = '1' or dc_mode = '0' then
+      if override_mode = '1' or lbit( evr_cdcsync_dc_mode ) = '0' then
         sync_dc_value := (others => '0');
       end if;
       sync_dc_id := sync_dc_value + sync_id_value;
