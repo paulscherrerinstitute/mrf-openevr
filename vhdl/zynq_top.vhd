@@ -86,6 +86,7 @@ architecture structure of zynq_top is
     delay_comp_value  : in std_logic_vector(31 downto 0);
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
+    delay_comp_status : out std_logic_vector(31 downto 0);
 
     transceiverIb : out EvrTransceiverIbType;
     transceiverOb : in  EvrTransceiverObType

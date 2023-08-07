@@ -56,6 +56,8 @@ entity evr_dc is
     delay_comp_value  : in std_logic_vector(31 downto 0);
     delay_comp_target : in std_logic_vector(31 downto 0);
     delay_comp_locked_out : out std_logic;
+    -- status is in sys_clk domain
+    delay_comp_status : out std_logic_vector(31 downto 0);
 
     transceiverOb   : in  EvrTransceiverObType;
     transceiverIb   : out EvrTransceiverIbType;
@@ -245,8 +247,6 @@ architecture structure of evr_dc is
   signal dc_fast_adjust       : std_logic;
   signal dc_slow_adjust       : std_logic;
 
-  signal dc_status        : std_logic_vector(31 downto 0);
-
 begin
 
   refclk       <= transceiverOb.tx_usr_clk;
@@ -335,7 +335,7 @@ begin
       override_mode => da_override_mode,
       override_update => da_override_update,
       override_adjust => da_override_adjust,
-      dc_status => dc_status,
+      dc_status => delay_comp_status,
       
       delay_comp_update => delay_comp_update,
       delay_comp_value  => delay_comp_value,
