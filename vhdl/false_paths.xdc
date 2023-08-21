@@ -28,7 +28,7 @@ set obj  [get_nets -hier -regex {.*int_dly_adj/dcm_phase_add.*}]
 set sysclk [get_clocks -of_objects [get_pins -of_objects [get_cell -hier int_dly_adj] -filter {NAME=~*/clk}]]
 set psclk [get_clocks -of_objects [get_pins -of_objects [get_cell -hier int_dly_adj] -filter {NAME=~*/psclk}]]
 
-set_max_delay -datapath_only -from $sysclk -through $obj -to $psclk [get_property PERIOD $psclk]
+set_max_delay -datapath_only -from $sysclk -through $obj -to $psclk [get_property -min PERIOD $psclk]
 
 set obj   [get_nets -hier -regex {.*/int_dly_adj/delay_comp_value_k.*}]
 set_max_delay -datapath_only -from [get_clocks -of_objects [all_fanin -startpoints_only -flat $obj]] -through $obj -to $sysclk [get_property PERIOD $sysclk]
