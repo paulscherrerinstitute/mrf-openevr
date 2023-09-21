@@ -8,7 +8,8 @@ use UNISIM.Vcomponents.ALL;
 
 entity evr_dc is
   generic (
-    MARK_DEBUG_ENABLE            : string    := "FALSE"
+    MARK_DEBUG_ENABLE            : string    := "FALSE";
+    MMCM_MULTIPLIER              : real      := 7.0
     );
   port (
     -- System bus clock
@@ -347,11 +348,11 @@ begin
   mmc_i : MMCME2_ADV
     generic map (
       BANDWIDTH => "OPTIMIZED",
-      CLKFBOUT_MULT_F => 7.0,
+      CLKFBOUT_MULT_F => MMCM_MULTIPLIER,
       CLKFBOUT_PHASE => 0.0,
       CLKIN1_PERIOD => 7.0,
       CLKIN2_PERIOD => 0.0,
-      CLKOUT0_DIVIDE_F => 7.000,
+      CLKOUT0_DIVIDE_F => MMCM_MULTIPLIER,
       CLKOUT1_DIVIDE => 1,
       CLKOUT2_DIVIDE => 1,
       CLKOUT3_DIVIDE => 1,
