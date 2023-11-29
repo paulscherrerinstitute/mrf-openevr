@@ -516,7 +516,7 @@ begin
               case addr_decode is
                 when "100"  => rx_checksum(15 downto 8) := databuf_data;
                 when "101"  => rx_checksum(7 downto 0) := databuf_data;
-                when "110"  => running := '0';
+                               running := '0';
 --                               if rx_flag_i(segment) = '1' then
 --                                 ov_flag_i(segment) <= '1';
 --                               end if;
